@@ -10,6 +10,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.util.*;
 
@@ -66,6 +67,9 @@ public class QuoteStepDefs {
             case "desktop":
                 size = new Dimension(1280, 1024);
                 break;
+            case "other":
+                size = new Dimension(1024, 768);
+                break;
             default:
                 throw new RuntimeException("Not supported layout: " + layout);
         }
@@ -74,6 +78,15 @@ public class QuoteStepDefs {
 
     @When("I fill out required fields")
     public void iFillOutRequiredFields() {
+        if (getDriver().getCurrentUrl().contains("/webdriver/html/sample.html")) {
+            getDriver().findElement(By.xpath("//*[@name='username']")).sendKeys("vd2019");
+            getDriver().findElement(By.xpath("//*[@name='email']")).sendKeys("v---a@happy.com");
+            getDriver().findElement(By.xpath("//*[@id='password']")).sendKeys("12345");
+            getDriver().findElement(By.xpath("//*[@id='confirmPassword']")).sendKeys("12345");
+            getDriver().findElement(By.xpath("//*[@name='agreedToPrivacyPolicy']")).click();
+            return;
+        }
+
         Map<String, String> customer = getData("customer");
         getDriver().findElement(By.xpath("//input[@name='username']")).sendKeys(customer.get("username"));
         getDriver().findElement(By.xpath("//input[@name='email']")).sendKeys(customer.get("email"));
@@ -98,7 +111,11 @@ public class QuoteStepDefs {
     @Then("I verify required fields")
     public void iVerifyRequiredFields() {
         Map<String, String> customer = getData("customer");
-        String actualResult = getDriver().findElement(By.xpath("//div[@id='quotePageResult']")).getText();
+        By resultLocator = By.id("quotePageResult");
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(resultLocator));
+        getWait(10).until(driver -> !driver.findElement(resultLocator).getText().isEmpty());
+
+        String actualResult = getDriver().findElement(resultLocator).getText();
         System.out.println(actualResult);
 
         assertThat(actualResult).contains(customer.get("username"));

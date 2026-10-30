@@ -1,0 +1,9 @@
+firstName: John
+lastName: Doe
+email: sdet@example.com
+password: welcome
+summary: John's summary
+address: 4970 El Camino Real
+city: Los Altos
+state: CA
+zip: "94022"

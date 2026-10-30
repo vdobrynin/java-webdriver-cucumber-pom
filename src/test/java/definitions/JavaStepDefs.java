@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class JavaStepDefs {
-
     @Given("I hello world")
     public void iHelloWorld() {
 
@@ -48,7 +47,8 @@ public class JavaStepDefs {
         System.out.println("Exact comparison: == " + (str1 == str2));
         System.out.println("Exact comparison: equals " + str1.equals(str2));
         System.out.println("Exact comparison: equals ignoring case " + str1.equalsIgnoreCase(str2));
-        System.out.println("Partial comparison: contains " + str1.toUpperCase().contains(str2.toUpperCase()));
+        System.out.println("Partial comparison: contains " + str1.toUpperCase()
+                .contains(str2.toUpperCase()));
     }
 
     @And("I operate {int} and {int} numbers")

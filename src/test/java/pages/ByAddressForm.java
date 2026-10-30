@@ -7,7 +7,6 @@ import org.openqa.selenium.support.ui.Select;
 import static support.TestContext.getDriver;
 
 public class ByAddressForm extends Page {
-
     public void fillStreetAddress(String street) {
         getDriver().findElement(By.id("tAddress")).sendKeys(street);
     }

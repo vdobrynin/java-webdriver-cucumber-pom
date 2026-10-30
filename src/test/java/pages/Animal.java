@@ -1,9 +1,7 @@
 package pages;
 
 abstract public class Animal {
-
     protected String name;
-
     public Animal() {
         this.name = "nameless one";
     }
@@ -25,5 +23,4 @@ abstract public class Animal {
     }
 
     abstract public void speak();
-
 }

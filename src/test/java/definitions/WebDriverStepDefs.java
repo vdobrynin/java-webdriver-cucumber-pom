@@ -69,11 +69,16 @@ public class WebDriverStepDefs {
 
     @When("^I fill out first name \"([^\"]*)\" and last name \"([^\"]*)\"$")
     public void iFillOutFirstNameAndLastName(String firstName, String lastName) throws Throwable {
-        getDriver().findElement(By.xpath("//*[@id='name']")).click();
-        getDriver().findElement(By.xpath("//*[@id='firstName']")).sendKeys(firstName);
-        getDriver().findElement(By.xpath("//*[@id='lastName']")).sendKeys(lastName);
+        getDriver().findElement(By.xpath("//*[@id='name']"))
+                .click();
+        getDriver().findElement(By.xpath("//*[@id='firstName']"))
+                .sendKeys(firstName);
+        getDriver().findElement(By.xpath("//*[@id='lastName']"))
+                .sendKeys(lastName);
 //    getDriver().findElement(By.xpath("//*[text()='Save']")).click();
-        getDriver().findElement(By.xpath("//*[normalize-space()='Save']")).click(); // -->01/18/23 save popup window
+        getDriver()
+                .findElement(By.xpath("//*[normalize-space()='Save']"))
+                .click(); // -->01/18/23 save popup window
     }
 
     @When("^I verify email field behavior$")
@@ -83,34 +88,45 @@ public class WebDriverStepDefs {
 //    getDriver().findElement(By.xpath("//*[@name='email']")).sendKeys(Keys.BACK_SPACE);
 //    getDriver().findElement(By.xpath("//*[@name='email']")).clear();
 //    getDriver().findElement(By.xpath("//*[@name='email']")).sendKeys("vasya@happy.com");  // below is optimization of email field entry.
-        WebElement emailField = getDriver().findElement(By.xpath("//input[@name='email']"));
+        WebElement emailField = getDriver()
+                .findElement(By.xpath("//input[@name='email']"));
         emailField.clear();
         emailField.sendKeys("wrong_format");                                      // below we put assertion
-        getDriver().findElement(By.xpath("//button[@id='formSubmit']")).click();              // to reveal errors we need to submit
+        getDriver()
+                .findElement(By.xpath("//button[@id='formSubmit']"))
+                .click();              // to reveal errors we need to submit
 //    Thread.sleep(2000);
 //  //Assertions we importing to static class at the top
 //    Assertions.assertThat(getDriver().findElement(By.xpath("//label[@id='email-error']")).getText()).contains("Please enter a valid email address.");
-        String emailError = getDriver().findElement(By.xpath("//label[@id='email-error']")).getText(); // this line original was "WebElement emailField =...", which was above
+        String emailError = getDriver()
+                .findElement(By.xpath("//label[@id='email-error']"))
+                .getText(); // this line original was "WebElement emailField =...", which was above
         assertThat(emailError).contains("Please enter a valid email address.");                             // it'll stop execution to shows error
 //    Thread.sleep(2000);
         emailField.sendKeys(Keys.BACK_SPACE);
         emailField.clear();
         emailField.sendKeys("v---a@happy.com");
 
-        boolean errorDisplayed = getDriver().findElement(By.xpath("//label[@id='email-error']")).isDisplayed();
+        boolean errorDisplayed = getDriver()
+                .findElement(By.xpath("//label[@id='email-error']"))
+                .isDisplayed();
         assertThat(errorDisplayed).isFalse();
     }
 
     @Then("^I verify fields saved correctly$")
     public void iVerifyFieldsSavedCorrectly() throws Throwable {
-        boolean resultDisplayed = getDriver().findElement(By.xpath("//legend[@class='applicationResult']")).isDisplayed();
+        boolean resultDisplayed = getDriver()
+                .findElement(By.xpath("//legend[@class='applicationResult']"))
+                .isDisplayed();
         assertThat(resultDisplayed).isTrue();
 //    String passwordText = getDriver().findElement(By.xpath("//b[@name='password']")).getText();  // directly work with the field & below to work with the section
 //    assertThat(passwordText).doesNotContain("password");
 //    assertThat(passwordText).contains("[entered]");
-
+//
 //    String resultText = getDriver().findElement(By.xpath("//div[@id='samplePageResult']//section")).getText();//for all section results --> old
-        String resultText = getDriver().findElement(By.xpath("//div[@id='samplePageResult']//fieldset//section")).getText();//for all section results --> 01.19.23
+        String resultText = getDriver()
+                .findElement(By.xpath("//div[@id='samplePageResult']//fieldset//section"))
+                .getText();//for all section results --> 01.19.23
         assertThat(resultText).contains("V---a");
         assertThat(resultText).contains("D------n");
         assertThat(resultText).contains("v---a@happy.com");
@@ -141,7 +157,8 @@ public class WebDriverStepDefs {
     public void iValidateZipCodeExistsInResult(String zip) throws Throwable {
         String body;
         try {
-            new org.openqa.selenium.support.ui.WebDriverWait(getDriver(), 20).until(driver -> {
+            new org.openqa.selenium.support.ui.WebDriverWait(getDriver(), 20)
+                    .until(driver -> {
                 String pageText = driver.findElement(By.tagName("body")).getText();
                 return pageText.contains(zip) || isUspsZipLookupUnavailable(pageText);
             });
@@ -176,5 +193,4 @@ public class WebDriverStepDefs {
                 || pageText.contains("temporarily unavailable")
                 || pageText.contains("unusual traffic");
     }
-
 }

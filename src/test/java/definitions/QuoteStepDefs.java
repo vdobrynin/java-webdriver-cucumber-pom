@@ -79,32 +79,45 @@ public class QuoteStepDefs {
     @When("I fill out required fields")
     public void iFillOutRequiredFields() {
         if (getDriver().getCurrentUrl().contains("/webdriver/html/sample.html")) {
-            getDriver().findElement(By.xpath("//*[@name='username']")).sendKeys("vd2019");
-            getDriver().findElement(By.xpath("//*[@name='email']")).sendKeys("v---a@happy.com");
-            getDriver().findElement(By.xpath("//*[@id='password']")).sendKeys("12345");
-            getDriver().findElement(By.xpath("//*[@id='confirmPassword']")).sendKeys("12345");
-            getDriver().findElement(By.xpath("//*[@name='agreedToPrivacyPolicy']")).click();
+            getDriver().findElement(By.xpath("//*[@name='username']"))
+                    .sendKeys("vd2019");
+            getDriver().findElement(By.xpath("//*[@name='email']"))
+                    .sendKeys("v---a@happy.com");
+            getDriver().findElement(By.xpath("//*[@id='password']"))
+                    .sendKeys("12345");
+            getDriver().findElement(By.xpath("//*[@id='confirmPassword']"))
+                    .sendKeys("12345");
+            getDriver().findElement(By.xpath("//*[@name='agreedToPrivacyPolicy']"))
+                    .click();
             return;
         }
 
         Map<String, String> customer = getData("customer");
-        getDriver().findElement(By.xpath("//input[@name='username']")).sendKeys(customer.get("username"));
-        getDriver().findElement(By.xpath("//input[@name='email']")).sendKeys(customer.get("email"));
-        getDriver().findElement(By.xpath("//input[@name='password']")).sendKeys(customer.get("password"));
-        getDriver().findElement(By.xpath("//input[@name='confirmPassword']")).sendKeys(customer.get("password"));
-
-        getDriver().findElement(By.xpath("//input[@id='name']")).click();
-        getDriver().findElement(By.xpath("//input[@id='firstName']")).sendKeys(customer.get("firstName"));
-        getDriver().findElement(By.xpath("//input[@id='lastName']")).sendKeys(customer.get("lastName"));
-        getDriver().findElement(By.xpath("//span[contains(text(),'Save')]")).click();
-
-        getDriver().findElement(By.xpath("//input[@name='agreedToPrivacyPolicy']")).click();
+        getDriver().findElement(By.xpath("//input[@name='username']"))
+                .sendKeys(customer.get("username"));
+        getDriver().findElement(By.xpath("//input[@name='email']"))
+                .sendKeys(customer.get("email"));
+        getDriver().findElement(By.xpath("//input[@name='password']"))
+                .sendKeys(customer.get("password"));
+        getDriver().findElement(By.xpath("//input[@name='confirmPassword']"))
+                .sendKeys(customer.get("password"));
+        getDriver().findElement(By.xpath("//input[@id='name']"))
+                .click();
+        getDriver().findElement(By.xpath("//input[@id='firstName']"))
+                .sendKeys(customer.get("firstName"));
+        getDriver().findElement(By.xpath("//input[@id='lastName']"))
+                .sendKeys(customer.get("lastName"));
+        getDriver().findElement(By.xpath("//span[contains(text(),'Save')]"))
+                .click();
+        getDriver().findElement(By.xpath("//input[@name='agreedToPrivacyPolicy']"))
+                .click();
     }
 
     @And("I submit the form")
     public void iSubmitTheForm() {
 //        getDriver().findElement(By.xpath("//button[@id='formSubmit']")).click();
-        WebElement submit = getDriver().findElement(By.xpath("//button[@id='formSubmit']"));
+        WebElement submit = getDriver()
+                .findElement(By.xpath("//button[@id='formSubmit']"));
         getExecutor().executeScript("arguments[0].click();", submit);
     }
 
@@ -113,7 +126,8 @@ public class QuoteStepDefs {
         Map<String, String> customer = getData("customer");
         By resultLocator = By.id("quotePageResult");
         getWait(10).until(ExpectedConditions.visibilityOfElementLocated(resultLocator));
-        getWait(10).until(driver -> !driver.findElement(resultLocator).getText().isEmpty());
+        getWait(10).until(driver -> !driver
+                .findElement(resultLocator).getText().isEmpty());
 
         String actualResult = getDriver().findElement(resultLocator).getText();
         System.out.println(actualResult);
@@ -123,9 +137,9 @@ public class QuoteStepDefs {
         assertThat(actualResult).contains(customer.get("firstName") + " " + customer.get("lastName"));
         assertThat(actualResult).doesNotContain(customer.get("password"));
 
-        String privacyResult = getDriver().findElement(By.xpath("//b[@name='agreedToPrivacyPolicy']")).getText();
+        String privacyResult = getDriver()
+                .findElement(By.xpath("//b[@name='agreedToPrivacyPolicy']")).getText();
         assertThat(privacyResult).contains("true");
-
 //        int windowCount = getDriver().getWindowHandles().size();
 //        getDriver().findElement(By.xpath("link")).click();
 //        int newWindowCount = getDriver().getWindowHandles().size();
@@ -142,7 +156,6 @@ public class QuoteStepDefs {
 
     }
 
-
     @When("I {string} {int}rd party agreement")
     public void iRdPartyAgreement(String action, int arg1) {
         getDriver().findElement(By.xpath("//button[@id='thirdPartyButton']")).click();
@@ -157,12 +170,11 @@ public class QuoteStepDefs {
 
     @And("I fill out {string} and {string} in additional info")
     public void iFillOutAndInAdditionalInfo(String name, String phone) throws InterruptedException {
-
         getDriver().switchTo().frame("additionalInfo");
-
-        getDriver().findElement(By.xpath("//input[@id='contactPersonName']")).sendKeys(name);
-        getDriver().findElement(By.xpath("//input[@id='contactPersonPhone']")).sendKeys(phone);
-
+        getDriver().findElement(By.xpath("//input[@id='contactPersonName']"))
+                .sendKeys(name);
+        getDriver().findElement(By.xpath("//input[@id='contactPersonPhone']"))
+                .sendKeys(phone);
         getDriver().switchTo().defaultContent();
     }
 
@@ -174,17 +186,18 @@ public class QuoteStepDefs {
 //        }
 
         String originalWindow = getDriver().getWindowHandle();
-        getDriver().findElement(By.xpath("//button[contains(@onclick,'new')]")).click();
-
+        getDriver()
+                .findElement(By.xpath("//button[contains(@onclick,'new')]"))
+                .click();
         Set<String> allWindows = getDriver().getWindowHandles();
         // switch to last window
         for (String window : allWindows) {
             getDriver().switchTo().window(window);
         }
 
-        String actualDocuments = getDriver().findElement(By.xpath("//ul")).getText();
+        String actualDocuments = getDriver()
+                .findElement(By.xpath("//ul")).getText();
         assertThat(actualDocuments).contains(document);
-
         // switch to original window
         getDriver().switchTo().window(originalWindow);
     }

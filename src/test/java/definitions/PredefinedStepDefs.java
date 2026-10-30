@@ -35,12 +35,14 @@ public class PredefinedStepDefs {
 
     @Then("I should see page title as {string}")
     public void iShouldSeePageTitleAs(String title) {
-        assertThat(getDriver().getTitle()).isEqualToIgnoringCase(title);
+        assertThat(getDriver()
+                .getTitle()).isEqualToIgnoringCase(title);
     }
 
     @Then("I should see page title contains {string}")
     public void iShouldSeePageTitleContains(String title) {
-        assertThat(getDriver().getTitle()).contains(title);
+        assertThat(getDriver()
+                .getTitle()).contains(title);
     }
 
     @Then("element with xpath {string} should be present")

@@ -32,7 +32,8 @@ public class TestContext {
     }
 
     public static Map<String, String> getData(String fileName) {
-        String path = System.getProperty("user.dir") + "/src/test/resources/data/" + fileName + ".yml";
+        String path = System
+                .getProperty("user.dir") + "/src/test/resources/data/" + fileName + ".yml";
         File file = new File(path);
         FileInputStream stream = null;
         try {

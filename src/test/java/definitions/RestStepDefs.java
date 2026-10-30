@@ -12,7 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static support.TestContext.getData;
 
 public class RestStepDefs {
-
     @Given("I login via REST API as {string}")
     public void iLoginViaRESTAPIAs(String role) {
         new RestWrapper().login(getData(role));
@@ -20,7 +19,8 @@ public class RestStepDefs {
 
     @When("I create via REST API {string} position")
     public void iCreateViaRESTAPIPosition(String type) {
-        new RestWrapper().createPosition(getData(type));
+        new RestWrapper()
+                .createPosition(getData(type));
     }
 
     @Then("I verify via REST API new position is in the list")
@@ -35,7 +35,8 @@ public class RestStepDefs {
 
     @When("I update via REST API {string} position")
     public void iUpdateViaRESTAPIPosition(String type) {
-        new RestWrapper().updatePosition(getData(type + "_updated"), RestWrapper.getLastPosition().get("id"));
+        new RestWrapper().updatePosition(getData(type + "_updated"), RestWrapper
+                .getLastPosition().get("id"));
     }
 
     @Then("I verify via REST API new position is updated")
@@ -57,7 +58,9 @@ public class RestStepDefs {
         List<Map<String, Object>> positions = RestWrapper.getPositions();
         Object id = RestWrapper.getLastPosition().get("id");
 
-        assertThat(findById(positions, id)).as("Deleted position should not be in the list").isNull();
+        assertThat(findById(positions, id))
+                .as("Deleted position should not be in the list")
+                .isNull();
     }
 
     @When("I create via REST API {string} candidate")
@@ -71,13 +74,15 @@ public class RestStepDefs {
         Map<String, Object> expected = RestWrapper.getLastCandidate();
         Map<String, Object> actual = findById(candidates, expected.get("id"));
 
-        assertThat(actual).as("New candidate should be in the list").isNotNull();
+        assertThat(actual).as("New candidate should be in the list")
+                .isNotNull();
         assertFieldsMatch(expected, actual);
     }
 
     @When("I update via REST API {string} candidate")
     public void iUpdateViaRESTAPICandidate(String type) {
-        new RestWrapper().updateCandidate(getData(type + "_updated"), RestWrapper.getLastCandidate().get("id"));
+        new RestWrapper().updateCandidate(getData(type + "_updated"), RestWrapper
+                .getLastCandidate().get("id"));
     }
 
     @Then("I verify via REST API new candidate is updated")
@@ -99,7 +104,9 @@ public class RestStepDefs {
         List<Map<String, Object>> candidates = RestWrapper.getCandidates();
         Object id = RestWrapper.getLastCandidate().get("id");
 
-        assertThat(findById(candidates, id)).as("Deleted candidate should not be in the list").isNull();
+        assertThat(findById(candidates, id))
+                .as("Deleted candidate should not be in the list")
+                .isNull();
     }
 
     private static Map<String, Object> findById(List<Map<String, Object>> items, Object id) {
@@ -116,7 +123,8 @@ public class RestStepDefs {
             if (key.equals("password") || key.equals("positionsCount") || key.equals("candidatesCount")) {
                 continue;
             }
-            assertThat(actual.get(key)).as("Field: " + key).isEqualTo(expected.get(key));
+            assertThat(actual.get(key)).as("Field: " + key)
+                    .isEqualTo(expected.get(key));
         }
     }
 }

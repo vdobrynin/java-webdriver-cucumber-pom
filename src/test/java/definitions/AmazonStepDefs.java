@@ -11,9 +11,8 @@ import static support.TestContext.getDriver;
 import static support.TestContext.getWait;
 
 public class AmazonStepDefs {
-
-    private static final By SEARCH_RESULTS = By.xpath("//*[@data-component-type='s-search-results']");
-
+    private static final By SEARCH_RESULTS = By
+            .xpath("//*[@data-component-type='s-search-results']");
     @And("I search amazon for {string}")
     public void iSearchAmazonFor(String text) {
         WebElement searchBox = getDriver().findElement(By.id("twotabsearchtextbox"));

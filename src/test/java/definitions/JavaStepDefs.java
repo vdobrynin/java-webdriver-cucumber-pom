@@ -19,6 +19,7 @@ public class JavaStepDefs {
 
     @Given("I hello world")
     public void iHelloWorld() {
+
         String message = "Say hello!";
         System.out.println(message);
         System.out.println("Hello World!");
@@ -37,6 +38,7 @@ public class JavaStepDefs {
 
     @Given("I perform actions with {string} and {string}")
     public void iPerformActionsWithAnd(String str1, String str2) {
+
         System.out.println("String 1: " + str1);
         System.out.println("String 2: " + str2);
         System.out.println("String 1: " + str1.toUpperCase());
@@ -51,6 +53,7 @@ public class JavaStepDefs {
 
     @And("I operate {int} and {int} numbers")
     public void iOperateAndNumbers(int num1, int num2) {
+
         System.out.println(num1 / num2);
         System.out.println(num1 % num2);
 
@@ -58,6 +61,7 @@ public class JavaStepDefs {
 
     @Given("I print url for {string} page")
     public void iPrintUrlForPage(String page) {
+
         // Using if statement:
         if (page.equals("google")) {
             System.out.println("https://www.google.com/");
@@ -83,21 +87,27 @@ public class JavaStepDefs {
 
     @Given("I work with arrays")
     public void iWorkWithArrays() {
+
         String[] fruits = {"plum", "apple", "kiwi"};
         int[] nums = {7, 3, 5, 8, 2, 9, 11};
         System.out.println(fruits[0]);
         System.out.println(nums[0]);
+
         for (String item : fruits) {
             System.out.println(item);
         }
+
         for (int i = 0; i < fruits.length; i++) {
             System.out.println(fruits[i]);
         }
+
         List<String> list = Arrays.asList("java", "plum", "apple");
         System.out.println(list);
+
         for (String item : list) {
             System.out.println(item);
         }
+
         for (int i = 0; i < list.size(); i++) {
             System.out.println(list.get(i));
         }
@@ -119,6 +129,7 @@ public class JavaStepDefs {
             }
         });
         System.out.println("Sorted descending order:" + intList);
+
         // Sort with Lambda (line does the same as above "Sort old style")
         intList.sort((i1, i2) -> i2 - i1);
         System.out.println("Sorted descending order:" + intList);
@@ -134,6 +145,7 @@ public class JavaStepDefs {
                 .filter(i -> i % 2 == 0)
                 .map(i -> "Even: " + i + " ")
                 .forEach(System.out::print);
+
         // Take string list, filter out only those starting with j or a, make them upper case, concatenate all separating by comma
         String result = list.stream()
                 .filter(str -> str.startsWith("j") || str.startsWith("a"))
@@ -144,11 +156,13 @@ public class JavaStepDefs {
 
     @Given("I work with maps")
     public void iWorkWithMaps() {
+
         Map<String, String> user = Map.of(
                 "username", "skryabin",
                 "email", "slava@skryabin",
                 "password", "welcome"
         );
+
         Map<String, String> admin = Map.of(
                 "username", "jdoe",
                 "email", "john@doe.com",
@@ -160,8 +174,6 @@ public class JavaStepDefs {
         System.out.println(admin.get("username"));
         System.out.println(admin.get("email"));
         System.out.println(admin.get("password"));
-
-
     }
 
     @Given("I solve FizzBuzz for {int}")
@@ -276,7 +288,6 @@ public class JavaStepDefs {
         }
         return array;
     }
-
 
     void printReverse(String str) {
         for (int i = str.length() - 1; i >= 0; i--) {

@@ -16,7 +16,7 @@ public class QuoteResult extends Page {
     @FindBy(xpath = "//b[@name='agreedToPrivacyPolicy']")
     private WebElement privacy;
 
-    @FindBy(xpath="//b[@name]")
+    @FindBy(xpath = "//b[@name]")
     private List<WebElement> resultElements;
 
     public String getResult() {

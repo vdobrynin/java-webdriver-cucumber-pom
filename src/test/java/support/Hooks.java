@@ -11,13 +11,13 @@ import java.util.concurrent.TimeUnit;
 import static support.TestContext.getDriver;
 
 public class Hooks {
-
     @Before(order = 0)
     public void scenarioStart() {
         TestContext.initialize();
         getDriver().manage().deleteAllCookies();
         getDriver().manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
         getDriver().manage().timeouts().implicitlyWait(5, TimeUnit.SECONDS);
+        getDriver().manage().window().maximize();
     }
 
     @After(order = 0)

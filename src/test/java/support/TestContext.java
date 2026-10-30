@@ -26,9 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TestContext {
-
     private static WebDriver driver;
-
     public static WebDriver getDriver() {
         return driver;
     }
@@ -93,8 +91,7 @@ public class TestContext {
                 ChromeOptions chromeOptions = new ChromeOptions();
                 chromeOptions.addArguments("--start-maximized");
                 chromeOptions.setExperimentalOption("prefs", chromePreferences);
-//                chromeOptions.addExtensions(new File(System.getProperty("user.dir")+ "/src/test/resources/extensions/ChroPath.crx"));
-                if (isHeadless) {
+                if (!isHeadless) {
                     chromeOptions.setHeadless(true);
                     chromeOptions.addArguments("--window-size=1920,1080");
                     chromeOptions.addArguments("--disable-gpu");
@@ -107,8 +104,8 @@ public class TestContext {
                     geckoDriverName = "geckodriver";
                 }
                 System.setProperty("webdriver.gecko.driver", getDriversDirPath() + geckoDriverName);
-                System.setProperty(FirefoxDriver.SystemProperty.DRIVER_USE_MARIONETTE,"true");
-                System.setProperty(FirefoxDriver.SystemProperty.BROWSER_LOGFILE,"/dev/null");
+                System.setProperty(FirefoxDriver.SystemProperty.DRIVER_USE_MARIONETTE, "true");
+                System.setProperty(FirefoxDriver.SystemProperty.BROWSER_LOGFILE, "/dev/null");
                 FirefoxProfile firefoxProfile = new FirefoxProfile();
                 firefoxProfile.setPreference("xpinstall.signatures.required", false);
                 firefoxProfile.setPreference("app.update.enabled", false);

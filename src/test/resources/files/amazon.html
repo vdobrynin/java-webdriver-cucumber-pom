@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Amazon Search</title>
+</head>
+<body>
+<h1>Amazon</h1>
+<form id="nav-search-form">
+    <input type="text" id="twotabsearchtextbox" name="field-keywords" placeholder="Search Amazon">
+    <input type="submit" id="nav-search-submit-button" value="Go">
+</form>
+<span data-component-type="s-search-results"></span>
+<script>
+    document.getElementById('nav-search-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        var query = document.getElementById('twotabsearchtextbox').value;
+        var results = {
+            'programming': 'Python Crash Course: A Hands-On, Project-Based Introduction to Programming',
+            'software development': 'Clean Architecture: A Craftsman\'s Guide to Software Structure and Design'
+        };
+        var content = results[query] || 'Search results for ' + query;
+
+        document.querySelector('[data-component-type="s-search-results"]').textContent = content;
+    });
+</script>
+</body>
+</html>

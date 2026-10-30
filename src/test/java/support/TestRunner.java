@@ -11,7 +11,7 @@ import org.junit.runner.RunWith;
         plugin = {"pretty", "html:target/cucumber", "json:target/cucumber/report.json"},
         features = "src/test/resources/features",
         glue = {"definitions", "support"},
-        tags = {"@predefined"} // same as VM option -Dcucumber.options="--tags @predefined"
+        tags = {"@predefined,@amazon,@market,@quote"} // same as VM option -Dcucumber.options="--tags @predefined,@amazon,@market,@quote"
 )
 public class TestRunner {
     @BeforeClass

@@ -23,6 +23,10 @@ public class MarketStepDefs {
 
     @When("I fill out {string} fields")
     public void iFillOutFields(String scope) {
+        if (!scope.equalsIgnoreCase("required")) {
+            throw new RuntimeException("Unknown fields scope: " + scope);
+        }
+
         QuoteForm form = new QuoteForm();
         form.fillUsername("skryabin");
         form.fillEmail("slava@skryabin.com");
@@ -30,7 +34,23 @@ public class MarketStepDefs {
         form.fillConfirmPassword("welcome");
         form.fillName("Slava", "Skryabin");
         form.acceptPrivacy();
-        form.submitForm();
+    }
+
+    @And("I fill out optional fields")
+    public void iFillOutOptionalFields() {
+        QuoteForm form = new QuoteForm();
+        form.fillPhone("1234567890");
+        form.fillDateOfBirth("11/17/1981");
+        form.selectCountryOfOrigin("USA");
+        form.selectGender("female");
+        form.allowContact();
+        form.fillAddress("123 Main St, Los Altos, CA 94022");
+        form.selectCarMake("Toyota");
+    }
+
+    @And("I submit the quote form")
+    public void iSubmitTheQuoteForm() {
+        new QuoteForm().submitForm();
     }
 
     @Then("I verify {string} fields")
@@ -38,17 +58,26 @@ public class MarketStepDefs {
         QuoteResult result = new QuoteResult();
         String resultText = result.getResult();
 
-        assertThat(resultText).contains("skryabin");
-        assertThat(resultText).contains("slava@skryabin.com");
-        assertThat(resultText).contains("Slava Skryabin");
-        assertThat(resultText).doesNotContain("welcome");
-        assertThat(result.getPrivacy()).isEqualTo("true");
-        assertThat(result.getPassword()).isEqualTo("[entered]");
-        assertThat(result.areAllResultElementsBold()).isTrue();
-    }
-
-    @And("I fill out optional fields")
-    public void iFillOutOptionalFields() {
-        // TODO: add verification
+        switch (scope.toLowerCase()) {
+            case "required":
+                assertThat(resultText).contains("skryabin");
+                assertThat(resultText).contains("slava@skryabin.com");
+                assertThat(resultText).contains("Slava Skryabin");
+                assertThat(resultText).doesNotContain("welcome");
+                assertThat(result.getPrivacy()).isEqualTo("true");
+                assertThat(result.getPassword()).isEqualTo("[entered]");
+                assertThat(result.areAllResultElementsBold()).isTrue();
+                break;
+            case "optional":
+                assertThat(resultText).contains("1234567890");
+                assertThat(resultText).contains("11/17/1981");
+                assertThat(resultText).contains("USA");
+                assertThat(resultText).contains("female");
+                assertThat(resultText).contains("123 Main St, Los Altos, CA 94022");
+                assertThat(resultText).contains("Toyota");
+                break;
+            default:
+                throw new RuntimeException("Unknown fields scope: " + scope);
+        }
     }
 }

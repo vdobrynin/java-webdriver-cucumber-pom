@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Predefined Test Page</title>
+    <style>
+        .hidden {
+            display: none;
+        }
+
+        #results {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Predefined Steps</h1>
+<form id="search-form">
+    <label for="query">Query</label>
+    <input type="text" id="query" name="q">
+    <button type="submit" id="search-button">Search</button>
+</form>
+<div id="results"></div>
+<div id="message">Ready</div>
+<div id="hidden-element" class="hidden">Hidden</div>
+<input type="checkbox" id="agree">
+<button type="button" id="disabled-button" disabled>Disabled</button>
+<iframe id="frame" src="predefined-frame.html"></iframe>
+<button type="button" id="alert-button" onclick="alert('Test alert')">Show alert</button>
+<script>
+    document.getElementById('search-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var query = document.getElementById('query').value;
+        document.getElementById('results').textContent = 'Results for ' + query;
+    });
+</script>
+</body>
+</html>

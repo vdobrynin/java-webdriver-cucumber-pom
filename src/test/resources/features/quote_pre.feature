@@ -128,7 +128,9 @@ Feature: Quote Predefined
   @quote_pre12
   Scenario: Check all Quote Results on page
     Given I open url "https://skryabin.com/market/quote.html"
-    And I click on element using JavaScript with xpath "//button[@id='formSubmit']"
+    When I fill out required fields
+    And I submit the form
+    And I wait for 1 sec
     Then element with xpath "//div[@id='quotePageResult']" should contain text "skryabin"
     Then element with xpath "//div[@id='quotePageResult']" should contain text "slava@skryabin.com"
     Then element with xpath "//div[@id='quotePageResult']" should not contain text "welcome"

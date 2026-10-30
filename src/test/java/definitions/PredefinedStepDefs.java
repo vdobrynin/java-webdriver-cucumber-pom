@@ -12,9 +12,11 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.net.URL;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static support.TestContext.getDriver;
+import static support.TestContext.getWait;
 
 public class PredefinedStepDefs {
     @Given("I open url {string}")
@@ -69,6 +71,18 @@ public class PredefinedStepDefs {
     public void elementWithXpathShouldContainText(String xpath, String text) {
         String actualText = getDriver().findElement(By.xpath(xpath)).getText();
         assertThat(actualText).contains(text);
+    }
+
+    @Then("element with xpath {string} should not contain text {string}")
+    public void elementWithXpathShouldNotContainText(String xpath, String text) {
+        String actualText = getDriver().findElement(By.xpath(xpath)).getText();
+        assertThat(actualText).doesNotContain(text);
+    }
+
+    @Then("element with xpath {string} should have text as {string}")
+    public void elementWithXpathShouldHaveTextAs(String xpath, String text) {
+        String actualText = getDriver().findElement(By.xpath(xpath)).getText();
+        assertThat(actualText).isEqualTo(text);
     }
 
     @Then("I wait for {int} sec")
@@ -154,5 +168,26 @@ public class PredefinedStepDefs {
     @When("I clear element with xpath {string}")
     public void iClearElementWithXpath(String xpath) {
         getDriver().findElement(By.xpath(xpath)).clear();
+    }
+
+    private String firstWindowHandle;
+
+    @And("I switch to new window")
+    public void iSwitchToNewWindow() {
+        firstWindowHandle = getDriver().getWindowHandle();
+        getWait().until(driver -> driver.getWindowHandles().size() > 1);
+
+        Set<String> windowHandles = getDriver().getWindowHandles();
+        for (String windowHandle : windowHandles) {
+            if (!windowHandle.equals(firstWindowHandle)) {
+                getDriver().switchTo().window(windowHandle);
+                return;
+            }
+        }
+    }
+
+    @And("I switch to first window")
+    public void iSwitchToFirstWindow() {
+        getDriver().switchTo().window(firstWindowHandle);
     }
 }

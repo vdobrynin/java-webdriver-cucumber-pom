@@ -2,7 +2,6 @@ package pages;
 
 public abstract class MyList {
     protected int[] data;
-
     public MyList(int... args) {
         data = args;
     }
@@ -25,5 +24,4 @@ public abstract class MyList {
     }
 
     abstract public void push(int item);
-
 }

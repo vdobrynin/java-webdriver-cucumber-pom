@@ -14,7 +14,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class RestWrapper {
-
     private static final String BASE_URL = "https://skryabin.com/recruit/api/v1/";
     public static final String CONTENT_TYPE = "Content-Type";
     public static final String JSON = "application/json";
@@ -115,7 +114,6 @@ public class RestWrapper {
 
     public Map<String, Object> updatePosition(Map<String, String> source, Object id) {
         Map<String, String> fields = new HashMap<>(source);
-
         Map<String, Object> result = authRequest()
                 .body(fields)
                 .when()
@@ -147,7 +145,6 @@ public class RestWrapper {
     public Map<String, Object> createCandidate(Map<String, String> source) {
         Map<String, String> candidate = new HashMap<>(source);
         candidate.put("email", uniqueEmail(candidate.get("email")));
-
         Map<String, Object> result = createCandidateRequest(candidate)
                 .then()
                 .log().ifError()
@@ -193,7 +190,6 @@ public class RestWrapper {
 
     public Map<String, Object> updateCandidate(Map<String, String> source, Object id) {
         Map<String, String> fields = new HashMap<>(source);
-
         Map<String, Object> result = authRequest()
                 .body(fields)
                 .when()
@@ -278,7 +274,6 @@ public class RestWrapper {
     private static String timestamp() {
         return new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(new Date());
     }
-
     private static String toIsoDate(String date) {
         if (date == null) {
             return null;

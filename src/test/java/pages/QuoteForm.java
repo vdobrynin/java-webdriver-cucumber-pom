@@ -8,7 +8,6 @@ import org.openqa.selenium.support.ui.Select;
 import static support.TestContext.getDriver;
 
 public class QuoteForm extends Page {
-
     public QuoteForm() {
         url = "https://skryabin.com/market/quote.html";
     }
@@ -131,8 +130,5 @@ public class QuoteForm extends Page {
 
     public void submitForm() {
         clickWithJS(submit);
-
     }
-
-
 }

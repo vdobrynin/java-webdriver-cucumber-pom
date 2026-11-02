@@ -8,9 +8,7 @@ import static support.TestContext.getDriver;
 import static support.TestContext.getExecutor;
 
 public class Page {
-
     protected String url;
-
     public Page() {
         PageFactory.initElements(getDriver(), this);
     }

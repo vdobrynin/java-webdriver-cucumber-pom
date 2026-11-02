@@ -65,7 +65,7 @@ public class TestContext {
     }
 
     public static void initialize() {
-        initialize("chrome", false);
+        initialize("chrome", true);
     }
 
     public static void teardown() {
@@ -91,6 +91,8 @@ public class TestContext {
                 chromePreferences.put("safebrowsing.enabled", "true");
                 ChromeOptions chromeOptions = new ChromeOptions();
                 chromeOptions.addArguments("--start-maximized");
+                chromeOptions.addArguments("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36");
                 chromeOptions.setExperimentalOption("prefs", chromePreferences);
                 if (!isHeadless) {
                     chromeOptions.setHeadless(true);

@@ -23,9 +23,9 @@ Feature: UPS tests
     When I fill out destination shipment fields
     When I submit the shipment form
     And I set packaging type
+    And I submit the shipment form
     Then I verify total charges changed
-    When I submit the shipment form
-    And I select cheapest delivery option
+    When I select cheapest delivery option
     And I submit the shipment form
     And I set Saturday Delivery type
     Then I verify total charges changed

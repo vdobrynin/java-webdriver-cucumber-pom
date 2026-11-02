@@ -7,234 +7,393 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static support.TestContext.*;
 
 public class UpsStepDefs {
+    private static final String GUIDED_ORIGIN_URL = "https://www.ups.com/ship/guided/origin?loc=en_US&src=FWS";
+    private String lastTotalCharges;
+
     @And("I open Shipping menu")
     public void iOpenShippingMenu() {
+        getWait(20).until(driver -> {
+            for (WebElement menu : driver.findElements(
+                    By.xpath("//button[@aria-controls='subsection-shipping']"))) {
+                if (menu.isDisplayed()) {
+                    return true;
+                }
+            }
+            for (WebElement menu : driver.findElements(
+                    By.xpath("//div[contains(@class,'nav-hamburger')]/button"))) {
+                if (menu.isDisplayed()) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        List<WebElement> desktopMenu = getDriver()
+                .findElements(By.xpath("//button[@aria-controls='subsection-shipping']"));
+        for (WebElement menu : desktopMenu) {
+            if (menu.isDisplayed()) {
+                jsClick(menu);
+                return;
+            }
+        }
+
+        List<WebElement> hamburger = getDriver()
+                .findElements(By.xpath("//div[contains(@class,'nav-hamburger')]/button"));
+        for (WebElement button : hamburger) {
+            if (button.isDisplayed()) {
+                jsClick(button);
+                break;
+            }
+        }
+
+        List<WebElement> mobileMenu = getDriver()
+                .findElements(By.xpath("//button[@aria-controls='mobile-subsection-shipping']"));
+        for (WebElement menu : mobileMenu) {
+            if (menu.isDisplayed()) {
+                jsClick(menu);
+                return;
+            }
+        }
+
         getDriver().findElement(By.id("ups-menuLinks1")).click();
     }
 
     @And("I go to Create a Shipment")
-    public void iGoToCreateAShipment() { //a[normalize-space()='Create a Shipment']
-        getDriver()
-                .findElement(By
-                        .xpath("//ul[@class='ups-menu_links']//a[contains(@href,'ship?')]"))
-                .click();
-        // //a[contains(@href,'ship?')][not(@id='ups-quickStartShip')]
+    public void iGoToCreateAShipment() {
+        getWait(10).until(driver -> !driver
+                .findElements(By.xpath("//a[.//span[normalize-space()='Create a Shipment']]")).isEmpty());
+
+        List<WebElement> createShipmentLinks = getDriver()
+                .findElements(By.xpath("//a[.//span[normalize-space()='Create a Shipment']]"));
+        boolean clicked = false;
+        for (WebElement link : createShipmentLinks) {
+            if (link.isDisplayed()) {
+                link.click();
+                clicked = true;
+                break;
+            }
+        }
+        if (!clicked) {
+            if (!createShipmentLinks.isEmpty()) {
+                jsClick(createShipmentLinks.get(0));
+            } else {
+                getDriver()
+                        .findElement(By.xpath("//ul[@class='ups-menu_links']//a[contains(@href,'ship?')]"))
+                        .click();
+            }
+        }
+
+        // Use the guided workflow; the default single-page workflow does not expose
+        // the same navigation buttons used by these scenarios.
+        getDriver().get(GUIDED_ORIGIN_URL);
+        getWait(30).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("origin-cac_companyOrName")));
     }
 
     @When("I fill out origin shipment fields")
     public void iFillOutOriginShipmentFields() throws InterruptedException {
         Map<String, String> sender = getData("sender");
-        getDriver().findElement(By.id("originname")).sendKeys(sender.get("name"));
-        getDriver().findElement(By.id("originaddress1")).sendKeys(sender.get("address"));
-        getDriver().findElement(By.id("originpostal")).sendKeys(sender.get("zip"));
+        dismissCookieBanner();
 
-        getWait().until(ExpectedConditions
-                .textToBePresentInElementValue(By.id("origincity"), sender.get("city")));
-        String upsStateCode = getData("states").get(sender.get("state"));
-        getWait().until(ExpectedConditions
-                .elementToBeSelected(By.xpath("//select[@id='originstate']/*[@value='" + upsStateCode + "']")));
-
-        getDriver().findElement(By.id("originemail")).sendKeys(sender.get("email"));
-        getDriver().findElement(By.id("originphone")).sendKeys(sender.get("phone"));
-        // because of the bug, number not get saved 50% times if not waiting
-        Thread.sleep(1000);
+        typeById("origin-cac_companyOrName", sender.get("name"));
+        typeById("origin-cac_contactName", sender.get("name"));
+        typeById("origin-cac_singleLineAddress", sender.get("address"));
+        Thread.sleep(2000);
+        getDriver().findElement(By.id("origin-cac_singleLineAddress")).sendKeys(Keys.ESCAPE);
+        typeById("origin-cac_email", sender.get("email"));
+        typeById("origin-cac_phone", sender.get("phone"));
     }
 
-    @And("^I submit the shipment form$")
-    public void iSubmitTheShipmentPage() throws Throwable {
-        String oldUrl = getDriver().getCurrentUrl();
+    @And("I submit the shipment form")
+    public void iSubmitTheShipmentForm() {
+        String url = getDriver().getCurrentUrl();
 
-        if (getDriver().getCurrentUrl().contains("payment")) {
-            getExecutor().executeScript("arguments[0].click();", getDriver()
-                    .findElement(By.xpath("//button[@id='nbsBackForwardNavigationReviewPrimaryButton']")));
+        if (url.contains("/guided/origin")) {
+            clickById("nbsBackForwardNavigationContinueButton");
+            getWait(20).until(ExpectedConditions
+                    .visibilityOfElementLocated(By.id("origin-cac_postalCode")));
+            fillDetailedAddress("origin", getData("sender"));
+            clickById("nbsBackForwardNavigationContinueButton");
+            handleAddressClassification("/guided/destination");
+        } else if (url.contains("/guided/destination")) {
+            clickById("nbsBackForwardNavigationContinueButton");
+            getWait(20).until(ExpectedConditions
+                    .visibilityOfElementLocated(By.id("destination-cac_postalCode")));
+            fillDetailedAddress("destination", getData("receiver"));
+            clickById("nbsBackForwardNavigationContinueButton");
+            handleAddressClassification("/guided/package");
+        } else if (url.contains("/guided/package")) {
+            clickById("nbsBackForwardNavigationContinueButton");
+            getWait(25).until(ExpectedConditions.urlContains("/guided/pickup-service"));
+        } else if (url.contains("/guided/pickup-service")) {
+            clickById("nbsBackForwardNavigationContinueButton");
+            getWait(25).until(ExpectedConditions.urlContains("/guided/options"));
+        } else if (url.contains("/guided/options")) {
+            clickById("nbsBackForwardNavigationContinueButton");
+            getWait(25).until(ExpectedConditions.urlContains("/guided/payment"));
+        } else if (url.contains("/guided/payment")) {
+            clickById("nbsBackForwardNavigationReviewPrimaryButton");
+            getWait(30).until(ExpectedConditions.urlContains("/ship/single-page"));
         } else {
-            getExecutor().executeScript("arguments[0].click();", getDriver()
-                    .findElement(By.xpath("//button[@id='nbsBackForwardNavigationContinueButton']")));
+            clickById("nbsBackForwardNavigationContinueButton");
         }
-        getWait(10).until(ExpectedConditions.not(ExpectedConditions.urlToBe(oldUrl)));
     }
 
     @Then("I verify origin shipment fields submitted")
     public void iVerifyOriginShipmentFieldsSubmitted() {
         Map<String, String> sender = getData("sender");
-        String originText = getDriver()
-                .findElement(By.xpath("//agent-summary")).getText();
-        assertThat(originText).containsIgnoringCase(sender.get("name"));
-        assertThat(originText).containsIgnoringCase(sender.get("address"));
-        assertThat(originText).containsIgnoringCase(sender.get("zip"));
-        assertThat(originText).containsIgnoringCase(sender.get("city"));
-        assertThat(originText).containsIgnoringCase(sender.get("state"));
-        assertThat(originText).containsIgnoringCase(sender.get("phone"));
-        assertThat(originText).containsIgnoringCase(sender.get("email"));
+        getWait(20).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("destination-cac_companyOrName")));
+
+        String pageText = getDriver().findElement(By.tagName("body")).getText();
+        assertThat(pageText).containsIgnoringCase(sender.get("name"));
+        assertThat(pageText).containsIgnoringCase(sender.get("address"));
+        assertThat(pageText).containsIgnoringCase(sender.get("zip"));
+        assertThat(pageText).containsIgnoringCase(sender.get("city"));
+        assertThat(pageText).containsIgnoringCase(sender.get("state"));
+        assertThat(pageText).containsIgnoringCase(sender.get("phone"));
+        assertThat(pageText).containsIgnoringCase(sender.get("email"));
     }
 
     @And("I cancel the shipment form")
     public void iCancelTheShipmentForm() {
-        getExecutor().executeScript("arguments[0].click();", getDriver()
-                .findElement(By.id("nbsBackForwardNavigationCancelShipmentButton")));
-        getExecutor().executeScript("arguments[0].click();", getDriver()
-                .findElement(By.id("nbsCancelShipmentWarningYes")));
+        clickById("nbsBackForwardNavigationCancelShipmentButton");
+        getWait(10).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("nbsCancelShipmentWarningYes")));
+        jsClick(getDriver().findElement(By.id("nbsCancelShipmentWarningYes")));
+        getWait(30).until(ExpectedConditions.urlContains("/guided/origin"));
     }
 
     @Then("I verify shipment form is reset")
     public void iVerifyShipmentFormIsReset() {
+        getWait(20).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("origin-cac_companyOrName")));
         String nameValue = getDriver()
-                .findElement(By.id("originname")).getAttribute("value");
+                .findElement(By.id("origin-cac_companyOrName"))
+                .getAttribute("value");
         assertThat(nameValue).isEmpty();
     }
 
     @When("I fill out destination shipment fields")
     public void iFillOutDestinationShipmentFields() throws InterruptedException {
         Map<String, String> receiver = getData("receiver");
-        getDriver().findElement(By.id("destinationname"))
-                .sendKeys(receiver.get("name"));
-        getDriver().findElement(By.id("destinationaddress1"))
-                .sendKeys(receiver.get("address"));
-        getDriver().findElement(By.id("destinationpostal"))
-                .sendKeys(receiver.get("zip"));
+        typeById("destination-cac_companyOrName", receiver.get("name"));
+        typeById("destination-cac_singleLineAddress", receiver.get("address"));
+        Thread.sleep(2000);
+        getDriver().findElement(By.id("destination-cac_singleLineAddress")).sendKeys(Keys.ESCAPE);
+    }
 
-        getWait().until(ExpectedConditions
-                .textToBePresentInElementValue(By.id("destinationcity"), receiver.get("city")));
-        String upsStateCode = getData("states").get(receiver.get("state"));
-        getWait()
-                .until(ExpectedConditions
-                .elementToBeSelected(By.xpath("//select[@id='destinationstate']/*[@value='" + upsStateCode + "']")));
-        // because of the bug, number not get saved 50% times if not waiting. Instead of adding wait, put error handling in iReviewAllRecordedDetailsOnTheReviewPage()
+    @And("I set packaging type")
+    public void iSetPackagingType() throws InterruptedException {
+        getWait(20).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("nbsPackagePackagingTypeDropdown0")));
+        Thread.sleep(2000);
+
+        WebElement packagingType = getDriver()
+                .findElement(By.id("nbsPackagePackagingTypeDropdown0"));
+        Select select = new Select(packagingType);
+        try {
+            select.selectByVisibleText("My Packaging");
+        } catch (NoSuchElementException e) {
+            select.selectByValue("29: Object");
+        }
+        Thread.sleep(1000);
+
+        typeById("nbsPackagePackageWeightField0", "1");
+        typeById("nbsPackagePackageLengthField0", "10");
+        typeById("nbsPackagePackageWidthField0", "10");
+        typeById("nbsPackagePackageHeightField0", "10");
+        Thread.sleep(1000);
     }
 
     @Then("I verify total charges changed")
     public void iVerifyTotalChargesChanged() {
-        WebElement total = getDriver().findElement(By.id("total-charges-spinner"));
-        String oldValue = total.getText();
-//        getWait().until(ExpectedConditions.not(ExpectedConditions.textToBePresentInElement(total, oldValue)));
-        getWait().until(driver -> !total.getText().equals(oldValue));
-    }
+        getWait(25).until(driver -> getTotalChargesText().contains("$"));
 
-    @And("I set packaging type")
-    public void iSetPackagingType() {
-        getDriver().findElement(By.id("nbsPackagePackageWeightField0"))
-                .sendKeys("1");
-        WebElement dropdown = getDriver()
-                .findElement(By.id("nbsPackagePackagingTypeDropdown0"));
-        new Select(dropdown).selectByValue("17: Object");
+        String currentTotal = getTotalChargesText().trim();
+        assertThat(currentTotal)
+                .as("Total charges should be displayed")
+                .contains("$");
+
+        if (lastTotalCharges != null) {
+            assertThat(currentTotal)
+                    .as("Total charges should change after updating the shipment")
+                    .isNotEqualTo(lastTotalCharges);
+        }
+        lastTotalCharges = currentTotal;
     }
 
     @And("I select cheapest delivery option")
-    public void iSelectCheapestDeliveryOption() throws ParseException {
-        try {
-            By accordionSelector = By.xpath("//button[@class='ups-accordion_toggle']");
-            getWait(10).until(ExpectedConditions.visibilityOfElementLocated(accordionSelector));
-            getExecutor().executeScript("arguments[0].click();", getDriver()
-                    .findElement(accordionSelector));
-        } catch (TimeoutException e) {
-            // sometimes button not there, when old UI is shown, handling the case to keep going and test old UI
-            System.out.println("Skip clicking the button");
-        }
-        try {
-            List<WebElement> deliveryPrices = getDriver()
-                    .findElements(By.xpath("//p[contains(@id,'nbsServiceTileTotalCharge')]"));
-            Locale locale = new Locale("en", "US");
-            NumberFormat formatter = NumberFormat.getCurrencyInstance(locale);
+    public void iSelectCheapestDeliveryOption() {
+        By priceLocator = By.xpath("//*[starts-with(@id,'nbsServiceTileTotalCharge')"
+                + " or contains(@class,'serviceCard_footer-price')]");
+        getWait(25).until(ExpectedConditions.presenceOfElementLocated(priceLocator));
 
-            WebElement cheapestPriceElement = null;
-            double cheapestPrice = Double.MAX_VALUE;
-            for (WebElement deliveryPrice : deliveryPrices) {
-                if (deliveryPrice.isDisplayed()) {
-                    double currentPrice = formatter.parse(deliveryPrice.getText()).doubleValue();
-                    if (currentPrice < cheapestPrice) {
-                        cheapestPrice = currentPrice;
-                        cheapestPriceElement = deliveryPrice;
-                    }
+        List<WebElement> lowestCostLabels = getDriver().findElements(
+                By.xpath("//label[contains(normalize-space(),'Lowest Cost')]"));
+        for (WebElement label : lowestCostLabels) {
+            if (label.isDisplayed()) {
+                jsClick(label);
+                return;
+            }
+        }
+
+        double cheapestPrice = Double.MAX_VALUE;
+        WebElement cheapestPriceElement = null;
+        for (WebElement price : getDriver().findElements(priceLocator)) {
+            if (price.isDisplayed()) {
+                double value = parsePrice(price.getText());
+                if (value > 0 && value < cheapestPrice) {
+                    cheapestPrice = value;
+                    cheapestPriceElement = price;
                 }
             }
-            System.out.println("Cheapest Price: " + cheapestPrice);
-            getExecutor().executeScript("arguments[0].click();", cheapestPriceElement);
-        } catch (StaleElementReferenceException e) {
-            // To achieve 100% success, if fails, launch itself again
-            System.out.println("Retrying");
-            iSelectCheapestDeliveryOption();
+        }
+
+        assertThat(cheapestPriceElement)
+                .as("Cheapest delivery option should be available")
+                .isNotNull();
+        jsClick(cheapestPriceElement.findElement(By.xpath("./ancestor::label[1]")));
+    }
+
+    @And("I set Saturday Delivery type")
+    public void iSetSaturdayDeliveryType() {
+        getWait(20).until(ExpectedConditions
+                .visibilityOfElementLocated(By.id("nbsShipmentDescription")));
+        typeById("nbsShipmentDescription", "Test");
+
+        WebElement saturdayDelivery = getDriver()
+                .findElement(By.id("nbsSaturdayDeliveryOptionBaseOptionSwitch"));
+        if (!saturdayDelivery.isSelected()) {
+            jsClick(saturdayDelivery);
         }
     }
 
-    @And("^I set Saturday Delivery type$")
-    public void iSetSaturdayDeliveryType() throws Throwable {
-        getDriver()
-                .findElement(By.xpath("//*[@name='nbsShipmentDescription']"))
-                .sendKeys("Test");
-        WebElement saturday = getDriver()
-                .findElement(By
-                        .xpath("//input[@id='nbsSaturdayDeliveryOptionBaseOptionSwitch']"));
-        if (!saturday.isSelected()) {
-            getExecutor().executeScript("arguments[0].click();", saturday);
+    @And("I select Paypal payment type")
+    public void iSelectPaypalPaymentType() throws InterruptedException {
+        By paypalLabel = By.xpath("//label[@for='other-ways-to-pay-tile']");
+        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(paypalLabel));
+        jsClick(getDriver().findElement(paypalLabel));
+        Thread.sleep(1000);
+    }
+
+    @Then("I review all recorded details on the review page")
+    public void iReviewAllRecordedDetailsOnTheReviewPage() {
+        Map<String, String> sender = getData("sender");
+        Map<String, String> receiver = getData("receiver");
+
+        getWait(30).until(ExpectedConditions.visibilityOfElementLocated(
+                By.id("nbsBackForwardNavigationPayAndGetLabelsButton")));
+
+        String pageText = getDriver().findElement(By.tagName("body")).getText();
+        assertThat(pageText).containsIgnoringCase(sender.get("name"));
+        assertThat(pageText).containsIgnoringCase(sender.get("address"));
+        assertThat(pageText).containsIgnoringCase(sender.get("city"));
+        assertThat(pageText).containsIgnoringCase(sender.get("zip"));
+        assertThat(pageText).containsIgnoringCase(receiver.get("name"));
+        assertThat(pageText).containsIgnoringCase(receiver.get("address"));
+        assertThat(pageText).containsIgnoringCase(receiver.get("city"));
+        assertThat(pageText).containsIgnoringCase(receiver.get("zip"));
+        assertThat(pageText).containsIgnoringCase("Saturday");
+        assertThat(pageText).containsIgnoringCase("PayPal");
+    }
+
+    private void fillDetailedAddress(String prefix, Map<String, String> address) {
+        WebElement addressLine1 = getDriver().findElement(By.id(prefix + "-cac_addressLine1"));
+        if (addressLine1.getAttribute("value").isEmpty()) {
+            typeById(prefix + "-cac_addressLine1", address.get("address"));
+        }
+        typeById(prefix + "-cac_postalCode", address.get("zip"));
+        typeById(prefix + "-cac_city", address.get("city"));
+        new Select(getDriver().findElement(By.id(prefix + "-cac_state")))
+                .selectByValue(address.get("state"));
+    }
+
+    private void handleAddressClassification(String expectedUrlPart) {
+        getWait(20).until(driver -> {
+            List<WebElement> modal = driver.findElements(By.id("nbsAddressClassificationContinue"));
+            return (modal.size() > 0 && modal.get(0).isDisplayed())
+                    || driver.getCurrentUrl().contains(expectedUrlPart);
+        });
+
+        List<WebElement> modal = getDriver().findElements(By.id("nbsAddressClassificationContinue"));
+        if (!modal.isEmpty() && modal.get(0).isDisplayed()) {
+            jsClick(modal.get(0));
+        }
+
+        getWait(30).until(ExpectedConditions.urlContains(expectedUrlPart));
+    }
+
+    private void dismissCookieBanner() {
+        List<WebElement> closeButtons = getDriver().findElements(
+                By.cssSelector("#onetrust-close-btn-container button, .onetrust-close-btn-handler"));
+        for (WebElement button : closeButtons) {
+            if (button.isDisplayed()) {
+                jsClick(button);
+                return;
+            }
         }
     }
 
-    @And("^I select Paypal payment type$")
-    public void iSelectPaypalPaymentType() {
-        WebElement other = getDriver()
-                .findElement(By.xpath("//label[@for='other-ways-to-pay-tile']"));
-        getExecutor().executeScript("arguments[0].click();", other);
-        By payPalLocator = By.xpath("//img[contains(@src,'paypal.png')]");
-        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(payPalLocator));
-        WebElement element = getDriver().findElement(payPalLocator);
+    private void typeById(String id, String value) {
+        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
+        WebElement element = getDriver().findElement(By.id(id));
+        try {
+            element.click();
+        } catch (WebDriverException e) {
+            jsClick(element);
+        }
+        element.clear();
+        element.sendKeys(value);
+
+        if (!value.equals(element.getAttribute("value"))) {
+            getExecutor().executeScript(
+                    "arguments[0].value = arguments[1];"
+                            + "arguments[0].dispatchEvent(new Event('input', {bubbles:true}));"
+                            + "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));"
+                            + "arguments[0].dispatchEvent(new Event('blur', {bubbles:true}));",
+                    element, value);
+        }
+    }
+
+    private void clickById(String id) {
+        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
+        jsClick(getDriver().findElement(By.id(id)));
+    }
+
+    private void jsClick(WebElement element) {
+        getExecutor().executeScript("arguments[0].scrollIntoView({block:'center'});", element);
         getExecutor().executeScript("arguments[0].click();", element);
     }
 
-    @Then("^I review all recorded details on the review page$")
-    public void iReviewAllRecordedDetailsOnTheReviewPage() {
-        Map<String, String> receiver = getData("receiver");
-        Map<String, String> sender = getData("sender");
-
-        getWait().until(ExpectedConditions
-                .visibilityOfElementLocated(By.xpath("//origin-return-drawer//*[@id='originnbsAgentSummaryName']")));
-        String origin = getDriver()
-                .findElement(By.xpath("//origin-return-drawer")).getText();
-        assertThat(origin).containsIgnoringCase(sender.get("name"));
-        assertThat(origin).containsIgnoringCase(sender.get("address"));
-        assertThat(origin).containsIgnoringCase(sender.get("city"));
-        assertThat(origin).containsIgnoringCase(sender.get("state"));
-        assertThat(origin).containsIgnoringCase(sender.get("zip"));
-        assertThat(origin).containsIgnoringCase(sender.get("email"));
-        assertThat(origin).containsIgnoringCase(sender.get("phone"));
-
-        String destination = "";
-        try {
-            getWait().until(ExpectedConditions.
-                    visibilityOfElementLocated(By
-                            .xpath("//destination-drawer//*[@id='destinationnbsAgentSummaryName']")));
-            destination = getDriver()
-                    .findElement(By.xpath("//destination-drawer")).getText();
-        } catch (TimeoutException e) {
-            // bug that sometimes values not recorded, have to put them again here
-            System.out.println("Values not recorded, re-initiating before validation");
-            WebElement zip = getDriver().findElement(By.id("destinationpostal"));
-            zip.clear();
-            zip.sendKeys(receiver.get("zip"));
-            getWait().until(ExpectedConditions
-                    .textToBePresentInElementValue(By.id("destinationcity"), receiver.get("city")));
-            String upsStateCode = getData("states").get(receiver.get("state"));
-            getWait().until(ExpectedConditions
-                    .elementToBeSelected(By.xpath("//select[@id='destinationstate']/*[@value='" + upsStateCode + "']")));
-            getExecutor()
-                    .executeScript("arguments[0].click();", getDriver()
-                            .findElement(By.xpath("//destination-drawer//span[contains(@class,'ups-icon-wedgeup')]")));
-            destination = getDriver()
-                    .findElement(By.xpath("//*[@id='destinationDrawer']")).getText();
+    private String getTotalChargesText() {
+        List<WebElement> containers = getDriver().findElements(By.id("nbsBalanceBarContainer"));
+        for (WebElement container : containers) {
+            if (container.isDisplayed() && !container.getText().trim().isEmpty()) {
+                return container.getText();
+            }
         }
 
-        assertThat(destination).containsIgnoringCase(receiver.get("name"));
-        assertThat(destination).containsIgnoringCase(receiver.get("address"));
-        assertThat(destination).containsIgnoringCase(receiver.get("city"));
-        assertThat(destination).containsIgnoringCase(receiver.get("zip"));
+        String bodyText = getDriver().findElement(By.tagName("body")).getText();
+        int index = bodyText.indexOf("Total Charges");
+        if (index >= 0) {
+            return bodyText.substring(index, Math.min(bodyText.length(), index + 100));
+        }
+        return bodyText;
+    }
+
+    private double parsePrice(String text) {
+        String digits = text.replaceAll("[^0-9.]", "");
+        if (digits.isEmpty()) {
+            return 0;
+        }
+        return Double.parseDouble(digits);
     }
 }

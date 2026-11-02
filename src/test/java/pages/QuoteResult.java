@@ -6,7 +6,6 @@ import org.openqa.selenium.support.FindBy;
 import java.util.List;
 
 public class QuoteResult extends Page {
-
     @FindBy(id = "quotePageResult")
     private WebElement result;
 
@@ -39,5 +38,4 @@ public class QuoteResult extends Page {
         }
         return true;
     }
-
 }

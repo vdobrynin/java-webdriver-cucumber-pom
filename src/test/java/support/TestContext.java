@@ -94,7 +94,7 @@ public class TestContext {
                 chromeOptions.addArguments("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                         + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36");
                 chromeOptions.setExperimentalOption("prefs", chromePreferences);
-                if (!isHeadless) {
+                if (isHeadless) {
                     chromeOptions.setHeadless(true);
                     chromeOptions.addArguments("--window-size=1920,1080");
                     chromeOptions.addArguments("--disable-gpu");

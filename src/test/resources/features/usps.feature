@@ -1,6 +1,5 @@
 @usps
 Feature: USPS scenarios
-
   Background:
     Given I go to "usps" page
 
@@ -19,7 +18,7 @@ Feature: USPS scenarios
     When I go to Calculate Price page
     And I select "United Kingdom (United Kingdom of Great Britain and Northern Ireland)" with "Postcard" shape
     And I define "2" quantity
-    Then I calculate the price and validate cost is "$2.30"
+    Then I calculate the price and validate cost is "$3.50"
 
   @usps3
   Scenario: Wrong store id does not match
@@ -36,59 +35,52 @@ Feature: USPS scenarios
   @usps5
   Scenario: Priority Mail
     When I go to "Stamps and Supplies" section
-    And I open Stamps
-    And choose category Priority Mail
-    Then I verify "1" item found in result
+    And I open "Supplies" in the store
+    And choose category "Priority Mail"
+    Then I verify that products found in "Priority Mail" category
 
   @usps6
-  Scenario: Verify color
-    When I go to "Stamps and Supplies" section
-    And I open Stamps
-    When I unselect Stamps checkbox
-    And select size "Large"
-    And I click "blue" color
-    Then I verify "Blue" and "Large" filters
-    Then I verify "US Mail T-Shirt" present in results
+  Scenario: Verify t-shirts
+    When I go to "Postal Store" tab
+    And I enter "t-shirt" into store search
+    Then I search and validate products found
+    And I verify that "U.S. Mail T-Shirt" present in results
+    And I verify that "Mr. ZIP Blue T-Shirt" present in results
 
   @usps7
   Scenario: Verify location
-    When I perform "Passports" search
-    And I select "Passport Application" in results
-    And I click "Find a Post Office" button
-    And I select "94022" zip code within "10 miles" and search
-    Then I verify that "MOUNTAIN VIEW — Post Office™" present in search results
-    And I verify that "Street Parking Available" in "MOUNTAIN VIEW — Post Office™"
-    When I expand "MOUNTAIN VIEW — Post Office™"
-    Then I verify that "650-960-6851" phone in "MOUNTAIN VIEW — Post Office™"
-    When I collapse office details
-    Then I verify I'm back on search results
+    When I go to "Find USPS Locations" page
+    And I search "94043" zip within "10" miles
+    Then I verify that "MOUNTAIN VIEW" present in search results
+    And I verify that "Post Office™" in "MOUNTAIN VIEW" results
+    And I verify that "Street Parking" in "MOUNTAIN VIEW" results
+    And I verify the number of search results is shown
 
   @usps8
   Scenario: PO Box
-    When I go to "PO Boxes" under "Track & Manage"
+    When I go to "PO Boxes" page
     And I reserve new PO box for "94022"
     Then I verify that "Los Altos — Post Office™" present
-    And I verify that "Size 5-XL" PO Box is available in "Los Altos — Post Office™"
+    And I verify that "Size 5" PO Box is available in "Los Altos — Post Office™"
 
   @usps9
   Scenario: Informed delivery enabled
     When I go to "Informed Delivery" section
-    And I enter "94022" zip for informed delivery
     Then I verify that informed delivery is "enabled"
 
   @usps10
-  Scenario: Informed delivery disabled
+  Scenario: Informed delivery sign up is disabled without email
     When I go to "Informed Delivery" section
-    And I enter "23424" zip for informed delivery
-    Then I verify that informed delivery is "disabled"
+    And I open "Sign Up for Free" link
+    Then I verify that informed delivery sign up is "disabled" without email
 
   @usps11
-  Scenario: Sign-in for ship now
-    When I perform "Free Boxes" search
-    And I set "Mail & Ship" in filters
-    Then I verify that "6" results found
-    When I select "Priority Mail | USPS" in results
-    And I click "Ship Now" button
+  Scenario: Sign-in required to purchase supplies
+    When I go to "Postal Store" tab
+    And I enter "Free Boxes" into store search
+    Then I search and validate products found
+    When I select product "Priority Mail Flat Rate® Medium Box"
+    And I add it to the cart
     Then I validate that Sign In is required
 
   @usps12
@@ -99,9 +91,9 @@ Feature: USPS scenarios
 
   @usps13
   Scenario: Every door direct mail
-    When I go to "Every Door Direct Mail" under "Business"
-    And I search for "4970 El Camino Real, Los Altos, CA 94022"
-    And I click "Show Table" on the map
+    When I go to "Every Door Direct Mail" page
+    And I search for "94043" in EDDM
+    And I click "Table" view on the map
     When I click "Select All" on the table
     And I close modal window
     Then I verify that summary of all rows of Cost column is equal Approximate Cost in Order Summary

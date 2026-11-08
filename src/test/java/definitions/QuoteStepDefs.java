@@ -19,7 +19,7 @@ import static support.TestContext.*;
 
 public class QuoteStepDefs {
     @Given("I go to {string} page")
-    public void iGoToPage(String page) throws InterruptedException {
+    public void iGoToPage(String page)  throws InterruptedException {
         switch (page.toLowerCase()) {
             case "google":
                 getDriver().get("https://www.google.com/");
@@ -38,6 +38,15 @@ public class QuoteStepDefs {
                 break;
             case "usps":
                 getDriver().get("https://www.usps.com/");
+                break;
+            case "po boxes":
+                getDriver().get("https://www.usps.com/manage/po-boxes.htm");
+                break;
+            case "find usps locations":
+                getDriver().get("https://tools.usps.com/locations/home.htm");
+                break;
+            case "every door direct mail":
+                getDriver().get("https://eddm.usps.com/eddm/select-routes.htm");
                 break;
             default:
                 throw new RuntimeException("Unsupported page: " + page);

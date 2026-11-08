@@ -25,7 +25,7 @@ Feature: UPS tests
     And I set packaging type
     And I submit the shipment form
     Then I verify total charges changed
-    When I select cheapest delivery option
+    When I select a Saturday-eligible delivery option
     And I submit the shipment form
     And I set Saturday Delivery type
     Then I verify total charges changed

@@ -1,5 +1,4 @@
 @amazon
-# Local fixture keeps the search test deterministic; live Amazon blocks/crashes automated sessions.
 Feature: Amazon
 
   Scenario Outline: Amazon search

@@ -7,6 +7,10 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 
@@ -136,13 +140,54 @@ public class UpsStepDefs {
             clickById("nbsBackForwardNavigationContinueButton");
             getWait(25).until(ExpectedConditions.urlContains("/guided/options"));
         } else if (url.contains("/guided/options")) {
-            clickById("nbsBackForwardNavigationContinueButton");
-            getWait(25).until(ExpectedConditions.urlContains("/guided/payment"));
+            submitDetailsAndWaitForPayment();
         } else if (url.contains("/guided/payment")) {
             clickById("nbsBackForwardNavigationReviewPrimaryButton");
             getWait(30).until(ExpectedConditions.urlContains("/ship/single-page"));
         } else {
             clickById("nbsBackForwardNavigationContinueButton");
+        }
+    }
+
+    private void submitDetailsAndWaitForPayment() {
+        By description = By.id("nbsShipmentDescription");
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            if (getDriver().getCurrentUrl().contains("/guided/payment")) {
+                return;
+            }
+            // Selecting Saturday Delivery re-rates the shipment and re-renders
+            // this form. Make sure the required description is still filled
+            // before asking UPS to continue.
+            getWait(10).until(ExpectedConditions.presenceOfElementLocated(description));
+            WebElement descriptionField = getDriver().findElement(description);
+            if (descriptionField.getAttribute("value").trim().isEmpty()) {
+                typeById("nbsShipmentDescription", "Test");
+            }
+
+            waitFor(1000);
+            clickById("nbsBackForwardNavigationContinueButton");
+            try {
+                getWait(12).until(ExpectedConditions.urlContains("/guided/payment"));
+                return;
+            } catch (TimeoutException e) {
+                System.out.println("Details page did not advance to payment (attempt "
+                        + attempt + "), URL: " + getDriver().getCurrentUrl());
+                if (attempt == 3) {
+                    printVisibleValidationErrors();
+                    throw e;
+                }
+                waitFor(1000);
+            }
+        }
+    }
+
+    private void printVisibleValidationErrors() {
+        List<WebElement> errors = getDriver().findElements(By.xpath(
+                "//*[contains(@class,'error') or contains(@class,'invalid')]"));
+        for (WebElement error : errors) {
+            if (error.isDisplayed() && !error.getText().trim().isEmpty()) {
+                System.out.println("Validation error: " + error.getText().trim());
+            }
         }
     }
 
@@ -230,37 +275,75 @@ public class UpsStepDefs {
         lastTotalCharges = currentTotal;
     }
 
-    @And("I select cheapest delivery option")
-    public void iSelectCheapestDeliveryOption() {
-        By priceLocator = By.xpath("//*[starts-with(@id,'nbsServiceTileTotalCharge')"
-                + " or contains(@class,'serviceCard_footer-price')]");
-        getWait(25).until(ExpectedConditions.presenceOfElementLocated(priceLocator));
+    @And("I select a Saturday-eligible delivery option")
+    public void iSelectSaturdayEligibleDeliveryOption() {
+        // Saturday Delivery is only offered for a service/ship-date combination
+        // where a Saturday arrival makes sense (for example Next Day Air shipped
+        // on a Friday). Pin the optional ship date to the next Friday so the
+        // scenario is independent of the day it runs on.
+        setEstimatedShipDateNextFriday();
+        selectService("UPS Next Day Air");
+    }
 
-        List<WebElement> lowestCostLabels = getDriver().findElements(
-                By.xpath("//label[contains(normalize-space(),'Lowest Cost')]"));
-        for (WebElement label : lowestCostLabels) {
-            if (label.isDisplayed()) {
-                jsClick(label);
-                return;
-            }
+    private void setEstimatedShipDateNextFriday() {
+        LocalDate nextFriday = LocalDate.now()
+                .with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY));
+        String date = nextFriday.format(DateTimeFormatter.ofPattern("M/d/yyyy"));
+
+        WebElement dateField = getDriver().findElement(By.id("nbsDropOffDatePicker"));
+        jsClick(dateField);
+        getExecutor().executeScript(
+                "var el = arguments[0];"
+                        + "var setter = Object.getOwnPropertyDescriptor("
+                        + "  window.HTMLInputElement.prototype, 'value').set;"
+                        + "setter.call(el, arguments[1]);"
+                        + "el.dispatchEvent(new Event('input', {bubbles: true}));"
+                        + "el.dispatchEvent(new Event('change', {bubbles: true}));"
+                        + "el.dispatchEvent(new Event('blur', {bubbles: true}));",
+                dateField, date);
+        if (!date.equals(dateField.getAttribute("value"))) {
+            boolean mac = System.getProperty("os.name", "").contains("Mac");
+            dateField.sendKeys(mac ? Keys.chord(Keys.COMMAND, "a") : Keys.chord(Keys.CONTROL, "a"));
+            dateField.sendKeys(Keys.DELETE);
+            dateField.sendKeys(date);
+            dateField.sendKeys(Keys.ESCAPE);
         }
 
-        double cheapestPrice = Double.MAX_VALUE;
-        WebElement cheapestPriceElement = null;
-        for (WebElement price : getDriver().findElements(priceLocator)) {
-            if (price.isDisplayed()) {
-                double value = parsePrice(price.getText());
-                if (value > 0 && value < cheapestPrice) {
-                    cheapestPrice = value;
-                    cheapestPriceElement = price;
+        getWait(20).until(driver -> date.equals(
+                driver.findElement(By.id("nbsDropOffDatePicker")).getAttribute("value")));
+        // Give UPS a moment to re-rate the shipment for the new ship date.
+        waitFor(4000);
+    }
+
+    private void selectService(String serviceName) {
+        By serviceLabel = By.xpath("//label[.//p[contains(@id,'nbsServiceTileServiceDescription')"
+                + " and normalize-space()='" + serviceName + "']]");
+        getWait(25).until(ExpectedConditions.presenceOfElementLocated(serviceLabel));
+        waitFor(3000);
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                for (WebElement label : getDriver().findElements(serviceLabel)) {
+                    if (label.isDisplayed()) {
+                        jsClick(label);
+                        return;
+                    }
                 }
+            } catch (StaleElementReferenceException ignored) {
+                // The rate list is still refreshing; retry with fresh elements.
             }
+            waitFor(1000);
         }
+        throw new NoSuchElementException("Service tile not found: " + serviceName);
+    }
 
-        assertThat(cheapestPriceElement)
-                .as("Cheapest delivery option should be available")
-                .isNotNull();
-        jsClick(cheapestPriceElement.findElement(By.xpath("./ancestor::label[1]")));
+    private void waitFor(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
     }
 
     @And("I set Saturday Delivery type")
@@ -269,8 +352,9 @@ public class UpsStepDefs {
                 .visibilityOfElementLocated(By.id("nbsShipmentDescription")));
         typeById("nbsShipmentDescription", "Test");
 
-        WebElement saturdayDelivery = getDriver()
-                .findElement(By.id("nbsSaturdayDeliveryOptionBaseOptionSwitch"));
+        WebElement saturdayDelivery = getWait(20)
+                .until(ExpectedConditions.presenceOfElementLocated(
+                        By.id("nbsSaturdayDeliveryOptionBaseOptionSwitch")));
         if (!saturdayDelivery.isSelected()) {
             jsClick(saturdayDelivery);
         }
@@ -389,11 +473,4 @@ public class UpsStepDefs {
         return bodyText;
     }
 
-    private double parsePrice(String text) {
-        String digits = text.replaceAll("[^0-9.]", "");
-        if (digits.isEmpty()) {
-            return 0;
-        }
-        return Double.parseDouble(digits);
-    }
 }

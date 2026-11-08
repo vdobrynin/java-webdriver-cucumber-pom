@@ -20,6 +20,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -80,7 +81,16 @@ public class TestContext {
                 if (osName != null && (osName.contains("Mac") || osName.contains("Linux"))) {
                     chromeDriverName = "chromedriver";
                 }
-                System.setProperty("webdriver.chrome.driver", getDriversDirPath() + chromeDriverName);
+                // Allow an externally managed driver (for example the one installed by
+                // scripts/update-chromedriver.sh) to take precedence over the bundled one.
+                String chromeDriverPath = System.getProperty("webdriver.chrome.driver");
+                if (chromeDriverPath == null || chromeDriverPath.trim().isEmpty()) {
+                    chromeDriverPath = System.getenv("CHROMEDRIVER_PATH");
+                }
+                if (chromeDriverPath == null || chromeDriverPath.trim().isEmpty()) {
+                    chromeDriverPath = getDriversDirPath() + chromeDriverName;
+                }
+                System.setProperty("webdriver.chrome.driver", chromeDriverPath);
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.geolocation", 2);
                 chromePreferences.put("download.prompt_for_download", false);
@@ -88,16 +98,31 @@ public class TestContext {
                 chromePreferences.put("download.default_directory", getDownloadsPath());
                 chromePreferences.put("credentials_enable_service", false);
                 chromePreferences.put("password_manager_enabled", false);
-                chromePreferences.put("safebrowsing.enabled", "true");
+                chromePreferences.put("safebrowsing.enabled", true);
                 ChromeOptions chromeOptions = new ChromeOptions();
-                chromeOptions.addArguments("--start-maximized");
+                String chromeBinary = getChromeBinary();
+                if (chromeBinary != null && new File(chromeBinary).canExecute()) {
+                    chromeOptions.setBinary(chromeBinary);
+                }
                 chromeOptions.addArguments("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36");
+                        + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36");
                 chromeOptions.setExperimentalOption("prefs", chromePreferences);
                 if (isHeadless) {
-                    chromeOptions.setHeadless(true);
+                    // Chrome 132+ only has the "new" headless mode.
+                    chromeOptions.addArguments("--headless");
                     chromeOptions.addArguments("--window-size=1920,1080");
-                    chromeOptions.addArguments("--disable-gpu");
+                    chromeOptions.addArguments("--disable-notifications");
+                    chromeOptions.addArguments("--no-first-run");
+                    chromeOptions.addArguments("--no-default-browser-check");
+                    // Recent Chrome builds also need --no-sandbox on macOS in CI-like
+                    // sessions, otherwise the renderer disconnects during navigation.
+                    chromeOptions.addArguments("--no-sandbox");
+                    chromeOptions.addArguments("--disable-setuid-sandbox");
+                    if (osName != null && osName.contains("Linux")) {
+                        chromeOptions.addArguments("--disable-dev-shm-usage");
+                    }
+                } else {
+                    chromeOptions.addArguments("--start-maximized");
                 }
                 driver = new ChromeDriver(chromeOptions);
                 break;
@@ -155,6 +180,26 @@ public class TestContext {
             default:
                 throw new RuntimeException("Driver is not implemented for: " + browser);
         }
+    }
+
+    private static String getChromeBinary() {
+        String binary = System.getProperty("chrome.binary");
+        if (binary == null || binary.trim().isEmpty()) {
+            binary = System.getenv("CHROME_BINARY");
+        }
+        if (binary == null || binary.trim().isEmpty()) {
+            File pointer = new File(System.getProperty("user.home"),
+                    ".cache/chrome-for-testing/current-binary.txt");
+            if (pointer.isFile()) {
+                try {
+                    binary = new String(java.nio.file.Files.readAllBytes(pointer.toPath()),
+                            java.nio.charset.StandardCharsets.UTF_8).trim();
+                } catch (IOException e) {
+                    System.out.println("Could not read Chrome binary path: " + e.getMessage());
+                }
+            }
+        }
+        return binary;
     }
 
     private static String getDriversDirPath() {

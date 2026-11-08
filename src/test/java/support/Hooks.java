@@ -14,9 +14,9 @@ import static support.TestContext.getDriver;
 public class Hooks {
     @Before(order = 0)
     public void scenarioStart(Scenario scenario) {
-        // UPS blocks/crashes Chrome in headless mode, so run that feature headful.
-        boolean isUps = scenario.getSourceTagNames().contains("@ups");
-        TestContext.initialize("chrome", !isUps);
+        // Every feature runs headless by default. Pass -Dheadless=false to watch a run.
+        boolean headless = !"false".equalsIgnoreCase(System.getProperty("headless", "true"));
+        TestContext.initialize("chrome", headless);
         getDriver().manage().deleteAllCookies();
         getDriver().manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
         getDriver().manage().timeouts().implicitlyWait(5, TimeUnit.SECONDS);

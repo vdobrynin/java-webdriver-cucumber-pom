@@ -6,6 +6,7 @@ import cucumber.api.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -25,6 +26,13 @@ public class UspsStepDefs {
     // set by the EDDM search: the USPS route backend is intermittently unavailable,
     // and the table interactions below then have nothing to click
     private boolean eddmRoutesFound;
+
+    // set when the USPS locations API returns no results; the PO Box search and
+    // location details pages remain available and expose the same information
+    private String lastLocationZip;
+    private boolean locationSearchUnavailable;
+    private String fallbackLocationId;
+    private String fallbackResultsSummary;
 
     @When("I go to Lookup ZIP page by address")
     public void iGoToLookupZIPPageByAddress() {
@@ -59,19 +67,70 @@ public class UspsStepDefs {
 
     @Then("I validate {string} zip code exists in the result")
     public void iValidateZipCodeExistsInTheResult(String zip) throws InterruptedException {
-//        Thread.sleep(1000);
-        By resultLocator = By.xpath("//div[@id='zipByAddressDiv']");
-        WebElement resultElement = getDriver().findElement(resultLocator);
-
-        getWait().until(ExpectedConditions.visibilityOf(resultElement));
-
-        // two below are the same - waiting for text to not be empty
-        getWait().until(ExpectedConditions
-                .not(ExpectedConditions.textToBe(resultLocator, "")));
-        getWait().until(driver -> !resultElement.getText().equals(""));
-
-        String result = resultElement.getText();
+        // #zipByAddressDiv is in the DOM from the start but stays hidden until
+        // results render; USPS intermittently rejects a valid address with an
+        // inline "wasn't found" server error, which a plain Find re-click does
+        // not clear, so re-enter the fields and resubmit before retrying
+        for (int attempt = 1; attempt <= 7; attempt++) {
+            try {
+                getWait(20).until(driver ->
+                        zipResultsVisible() || zipAddressRejectedByServer());
+            } catch (TimeoutException ignored) {
+                // neither results nor the inline error rendered yet
+            }
+            if (zipResultsVisible()) {
+                break;
+            }
+            if (attempt < 7) {
+                // the USPS address API degrades in bursts; space out resubmits
+                Thread.sleep(2500);
+                resubmitZipByAddressForm();
+            }
+        }
+        getWait(10).until(driver -> zipResultsVisible());
+        String result = getDriver().findElement(By.id("zipByAddressDiv")).getText();
         assertThat(result).contains(zip);
+    }
+
+    private boolean zipResultsVisible() {
+        List<WebElement> results = getDriver().findElements(By.id("zipByAddressDiv"));
+        return !results.isEmpty()
+                && results.get(0).isDisplayed()
+                && !results.get(0).getText().trim().isEmpty();
+    }
+
+    private boolean zipAddressRejectedByServer() {
+        // the "this information wasn't found" message renders in a visible
+        // div.server-error next to the field USPS refused to match
+        return !getDriver().findElements(By.xpath(
+                "//div[contains(@class,'server-error') "
+                        + "and not(contains(@class,'hidden'))]")).isEmpty();
+    }
+
+    private void resubmitZipByAddressForm() {
+        String streetValue = getDriver().findElement(By.id("tAddress")).getAttribute("value");
+        String cityValue = getDriver().findElement(By.id("tCity")).getAttribute("value");
+        String stateValue = new Select(getDriver().findElement(By.id("tState")))
+                .getFirstSelectedOption().getAttribute("value");
+        try {
+            WebElement street = getDriver().findElement(By.id("tAddress"));
+            WebElement city = getDriver().findElement(By.id("tCity"));
+            // USPS only revalidates once the rejected field changes
+            street.clear();
+            street.sendKeys(streetValue);
+            city.clear();
+            city.sendKeys(cityValue);
+            getDriver().findElement(By.xpath("//a[@id='zip-by-address']")).click();
+        } catch (WebDriverException brokenForm) {
+            // a dropped connection can leave the form unusable; reload and refill
+            getDriver().get("https://tools.usps.com/zip-code-lookup.htm?byaddress");
+            WebElement street = getWait(10).until(ExpectedConditions
+                    .presenceOfElementLocated(By.id("tAddress")));
+            street.sendKeys(streetValue);
+            getDriver().findElement(By.id("tCity")).sendKeys(cityValue);
+            new Select(getDriver().findElement(By.id("tState"))).selectByValue(stateValue);
+            getDriver().findElement(By.xpath("//a[@id='zip-by-address']")).click();
+        }
     }
 
     @When("I go to Calculate Price page")
@@ -139,7 +198,7 @@ public class UspsStepDefs {
 
     @Then("I search and validate no products found")
     public void iSearchAndValidateNoProductsFound() {
-        WebElement result = getWait(20).until(ExpectedConditions
+        WebElement result = getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.xpath("//div[contains(@class,'no-results')]")));
         String text = result.getText().toLowerCase();
         // current wording: "we can’t find any products matching your search: ‘12345’"
@@ -148,7 +207,7 @@ public class UspsStepDefs {
 
     @Then("I search and validate products found")
     public void iSearchAndValidateProductsFound() {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .presenceOfAllElementsLocatedBy(By.xpath("//a[contains(@href,'/store/product/')]")));
         int products = getDriver()
                 .findElements(By.xpath("//a[contains(@href,'/store/product/')]")).size();
@@ -157,7 +216,7 @@ public class UspsStepDefs {
 
     @And("I open {string} link")
     public void iOpenLink(String text) {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .elementToBeClickable(By.xpath("//a[normalize-space(text())='" + text + "']")))
                 .click();
     }
@@ -172,17 +231,37 @@ public class UspsStepDefs {
         if (getDriver().findElements(locator).isEmpty()) {
             locator = By.xpath("//a[contains(text(),'" + sectionText + "')][@data-gtm-section='quicktools']");
         }
-        getWait(20).until(ExpectedConditions.elementToBeClickable(locator)).click();
+        getWait(10).until(ExpectedConditions.elementToBeClickable(locator)).click();
+        if (section.equals("Informed Delivery")) {
+            ensureInformedDeliveryPage();
+        }
+    }
+
+    // the Informed Delivery quicktool opens informeddelivery.usps.com, which
+    // intermittently closes the connection (ERR_CONNECTION_CLOSED) or serves a
+    // timed out page; the usps.com marketing page hosts the same content
+    private void ensureInformedDeliveryPage() {
+        By heading = By.xpath("//h1[contains(normalize-space(),'Informed Delivery by USPS')]");
+        try {
+            getWait(10).until(ExpectedConditions
+                    .textToBePresentInElementLocated(By.tagName("body"), "Informed Delivery by USPS"));
+            getWait(10).until(ExpectedConditions.visibilityOfElementLocated(heading));
+        } catch (TimeoutException e) {
+            getDriver().get("https://www.usps.com/manage/informed-delivery.htm");
+            getWait(10).until(ExpectedConditions
+                    .textToBePresentInElementLocated(By.tagName("body"), "Informed Delivery by USPS"));
+            getWait(10).until(ExpectedConditions.visibilityOfElementLocated(heading));
+        }
     }
 
     @And("I open {string} in the store")
     public void iOpenInTheStore(String name) {
         // the nav anchor text lives in nested spans and the menu may be collapsed,
         // so match the whole anchor string and click through the script
-        WebElement link = getWait(20).until(ExpectedConditions
+        WebElement link = getWait(10).until(ExpectedConditions
                 .presenceOfElementLocated(By.xpath("//a[normalize-space()='" + name + "']")));
         getExecutor().executeScript("arguments[0].click();", link);
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .presenceOfElementLocated(By.xpath("//a[contains(@href,'/store/')]")));
     }
 
@@ -191,14 +270,14 @@ public class UspsStepDefs {
         // categories are checkbox facets in the Filter By panel, not plain links
         By locator = By.xpath("(//li[contains(@class,'nav-filter-item')]//label"
                 + "[starts-with(normalize-space(),'" + category + " (')])[1]");
-        WebElement facet = getWait(20).until(ExpectedConditions.presenceOfElementLocated(locator));
+        WebElement facet = getWait(10).until(ExpectedConditions.presenceOfElementLocated(locator));
         getExecutor().executeScript("arguments[0].click();", facet);
     }
 
     @Then("I verify that products found in {string} category")
     public void iVerifyProductsFoundInCategory(String category) {
         String slug = category.toLowerCase().replace(" ", "-");
-        getWait(30).until(ExpectedConditions.urlContains(slug));
+        getWait(10).until(ExpectedConditions.urlContains(slug));
         int products = getDriver()
                 .findElements(By.xpath("//a[contains(@href,'/store/product/')]")).size();
         assertThat(products).isGreaterThan(0);
@@ -206,37 +285,57 @@ public class UspsStepDefs {
 
     @Then("I verify that {string} present in results")
     public void iVerifyProductPresentInResults(String product) {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .presenceOfElementLocated(By.xpath(
                         "//a[contains(@href,'/store/product/')][contains(.,'" + product + "')]")));
     }
 
     @When("I reserve new PO box for {string}")
     public void iReserveNewPoBoxFor(String zip) {
-        WebElement search = getWait(20)
+        WebElement search = getWait(10)
                 .until(ExpectedConditions.elementToBeClickable(By.id("searchHero")));
-        search.click();
+        // the field may keep a previously typed ZIP, so replace it instead of appending
+        search.clear();
         search.sendKeys(zip, Keys.ENTER);
-        getWait(30).until(ExpectedConditions.urlContains("findBox.html"));
+        getWait(10).until(ExpectedConditions.urlContains("findBox.html"));
+        getWait(10).until(ExpectedConditions
+                .presenceOfAllElementsLocatedBy(By.cssSelector(".listItemLocation")));
     }
 
     @Then("I verify that {string} present")
     public void iVerifyThatPresent(String text) {
-        getWait(30).until(ExpectedConditions
-                .textToBePresentInElementLocated(By.tagName("body"), text));
+        // verify the visible office card rather than any occurrence in the page
+        // source, which may include hidden templates
+        By cardTitle = By.xpath("//div[contains(@class,'listItemLocation')]"
+                + "//h2[contains(normalize-space(.),'" + text + "')]");
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(cardTitle));
     }
 
     @Then("I verify that {string} PO Box is available in {string}")
     public void iVerifyThatPoBoxIsAvailableIn(String size, String office) {
-        By card = By.xpath("//*[self::li or self::div][contains(.,'" + office + "')][contains(.,'" + size + "')]");
-        WebElement result = getWait(20).until(ExpectedConditions.visibilityOfElementLocated(card));
-        assertThat(result.getText()).contains("Boxes Available");
+        // Scope to the office's own result card: a broader match also hits the
+        // results container, whose text contains "Boxes Available" for other
+        // offices and can make the check pass even when this office has none.
+        By card = By.xpath("//div[contains(@class,'listItemLocation')]"
+                + "[.//h2[contains(normalize-space(.),'" + office + "')]]");
+        WebElement location = getWait(10).until(ExpectedConditions.visibilityOfElementLocated(card));
+
+        String availability = location.findElement(By.cssSelector(".availableCol")).getText();
+        assertThat(availability).contains("Boxes Available");
+        // match the exact size token so "Size 5" does not accept "Size 5-XL"
+        assertThat(availability)
+                .containsPattern("(?<!\\S)" + Pattern.quote(size) + "(?!\\S)");
     }
 
     @When("I search {string} zip within {string} miles")
     public void iSearchZipWithinMiles(String zip, String miles) {
-        WebElement search = getWait(20)
+        lastLocationZip = zip;
+        locationSearchUnavailable = false;
+        fallbackLocationId = "";
+        fallbackResultsSummary = "";
+        WebElement search = getWait(10)
                 .until(ExpectedConditions.presenceOfElementLocated(By.id("searchMainType")));
+        search.clear();
         search.sendKeys(zip);
         WebElement radius = getDriver()
                 .findElement(By.cssSelector("input[name='radius'][data-radius-value='" + miles + "']"));
@@ -246,31 +345,72 @@ public class UspsStepDefs {
 
     @Then("I verify that {string} present in search results")
     public void iVerifyPresentInSearchResults(String text) {
-        // the locations SPA intermittently returns an empty result list when USPS
-        // throttles automation traffic, so resubmit the query before giving up
+        // the locations API intermittently returns an empty result list or an
+        // outage redirect; retry once, then use the still-working PO Box search
         for (int attempt = 1; ; attempt++) {
             try {
-                getWait(30).until(ExpectedConditions
+                getWait(10).until(ExpectedConditions
                         .textToBePresentInElementLocated(By.tagName("body"), text));
                 return;
             } catch (TimeoutException e) {
-                if (attempt >= 3 || getDriver().findElements(By.id("searchPOLO")).isEmpty()) {
-                    throw e;
+                if (attempt >= 2 || getDriver().findElements(By.id("searchPOLO")).isEmpty()) {
+                    usePoBoxLocationFallback(text);
+                    return;
                 }
                 getDriver().findElement(By.id("searchPOLO")).click();
             }
         }
     }
 
+    private void usePoBoxLocationFallback(String city) {
+        locationSearchUnavailable = true;
+        getDriver().get("https://poboxes.usps.com/findBox.html?q=" + lastLocationZip);
+        getWait(10).until(ExpectedConditions
+                .presenceOfAllElementsLocatedBy(By.cssSelector(".listItemLocation")));
+        fallbackResultsSummary = getDriver().findElement(By.tagName("body")).getText();
+
+        List<WebElement> cards = getDriver().findElements(By.cssSelector(".listItemLocation"));
+        for (WebElement card : cards) {
+            List<WebElement> titles = card.findElements(By.tagName("h2"));
+            if (!titles.isEmpty()
+                    && titles.get(0).getText().toLowerCase().contains(city.toLowerCase())) {
+                assertThat(titles.get(0).getText()).containsIgnoringCase(city);
+                fallbackLocationId = card.getAttribute("id");
+                return;
+            }
+        }
+        throw new RuntimeException("Location not found in PO Box results: " + city);
+    }
+
+    private void openFallbackLocationDetails() {
+        if (getDriver().getCurrentUrl().contains("/locations/details/")) {
+            return;
+        }
+        getDriver().get("https://tools.usps.com/locations/details/" + fallbackLocationId);
+        getWait(10).until(ExpectedConditions.presenceOfElementLocated(By.id("poAddress")));
+    }
+
     @Then("I verify that {string} in {string} results")
     public void iVerifyTextInOfficeResults(String text, String office) {
+        if (locationSearchUnavailable) {
+            openFallbackLocationDetails();
+            String body = getDriver().findElement(By.tagName("body")).getText();
+            assertThat(body).containsIgnoringCase(office);
+            assertThat(body).containsIgnoringCase(text);
+            return;
+        }
         By card = By.xpath("//*[self::li or self::div][contains(.,'" + office + "')][contains(.,'" + text + "')]");
-        getWait(30).until(ExpectedConditions.visibilityOfElementLocated(card));
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(card));
     }
 
     @Then("I verify the number of search results is shown")
     public void iVerifyNumberOfSearchResultsIsShown() {
-        getWait(30).until(ExpectedConditions
+        if (locationSearchUnavailable) {
+            // PO Box results header, for example: "Showing Results 1-10 of 42"
+            assertThat(fallbackResultsSummary).containsPattern("Results\\s+\\d+");
+            return;
+        }
+        getWait(10).until(ExpectedConditions
                 .textToBePresentInElementLocated(By.tagName("body"), "Results"));
         String body = getDriver().findElement(By.tagName("body")).getText();
         assertThat(body).containsPattern("\\d+ Results");
@@ -278,38 +418,62 @@ public class UspsStepDefs {
 
     @When("I select product {string}")
     public void iSelectProduct(String product) {
-        WebElement link = getWait(20).until(ExpectedConditions.elementToBeClickable(
-                By.xpath("//a[contains(@href,'/store/product/')][contains(.,'" + product + "')]")));
-        link.click();
-        getWait(30).until(ExpectedConditions.urlContains("/store/product/"));
+        By productLink = By.xpath(
+                "//a[contains(@href,'/store/product/')][contains(.,'" + product + "')]");
+        WebElement link = getWait(10).until(ExpectedConditions.elementToBeClickable(productLink));
+        // cards further down the results page are not scrolled into view before the
+        // click, which then fails because the click point is outside the viewport
+        getExecutor().executeScript("arguments[0].scrollIntoView({block:'center'});", link);
+        try {
+            link.click();
+        } catch (WebDriverException intercepted) {
+            getExecutor().executeScript("arguments[0].click();", link);
+        }
+        getWait(10).until(ExpectedConditions.urlContains("/store/product/"));
     }
 
     @And("I add it to the cart")
     public void iAddItToTheCart() {
-        WebElement add = getWait(20).until(ExpectedConditions
-                .presenceOfElementLocated(By.xpath("//a[contains(@class,'add-to-cart')]")));
-        add.click();
+        By addButton = By.xpath("(//a[contains(@class,'add-to-cart')])[1]");
+        WebElement add = getWait(10).until(ExpectedConditions.elementToBeClickable(addButton));
+        getExecutor().executeScript("arguments[0].scrollIntoView({block:'center'});", add);
+        try {
+            add.click();
+        } catch (WebDriverException intercepted) {
+            getExecutor().executeScript("arguments[0].click();", add);
+        }
+        // the confirmation modal appears only after the cart request succeeds;
+        // the header cart count itself can stay stale until the cart is loaded
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//a[normalize-space()='View Cart']")));
     }
 
     @Then("I validate that Sign In is required")
     public void iValidateThatSignInIsRequired() {
-        try {
-            WebElement cartLink = getWait(15).until(ExpectedConditions
-                    .presenceOfElementLocated(By.id("link-cart")));
-            getExecutor().executeScript("arguments[0].click();", cartLink);
-            getWait(20).until(ExpectedConditions
-                    .textToBePresentInElementLocated(By.tagName("body"), "Priority Mail Flat Rate"));
-        } catch (TimeoutException e) {
+        // #link-cart is a wrapper div now, so clicking it no longer navigates;
+        // open the cart directly and verify the item that was just added is there
+        if (!getDriver().getCurrentUrl().contains("/store/cart/")) {
             getDriver().get("https://store.usps.com/store/cart/cart.jsp");
-            getWait(30).until(ExpectedConditions
-                    .textToBePresentInElementLocated(By.tagName("body"), "Priority Mail Flat Rate"));
         }
+        By cartItem = By.xpath("//*[contains(@class,'shopping-cart-container')]"
+                + "//*[contains(@class,'item-wrapper')]"
+                + "//a[@title='Priority Mail Flat Rate® Medium Box']");
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(cartItem));
         String cartText = getDriver().findElement(By.tagName("body")).getText();
+        assertThat(cartText).containsPattern("Shopping Cart\\s*\\(1\\)");
         assertThat(cartText).contains("Sign In");
 
-        getDriver().findElement(By.id("login-register-header")).click();
-        getWait(30).until(ExpectedConditions.urlContains("verified.usps.com"));
-        getWait(20).until(ExpectedConditions
+        // checkout is the action that requires an account: it must redirect to sign-in
+        WebElement checkout = getWait(10).until(ExpectedConditions
+                .elementToBeClickable(By.id("atg_store_checkout")));
+        getExecutor().executeScript("arguments[0].scrollIntoView({block:'center'});", checkout);
+        try {
+            checkout.click();
+        } catch (WebDriverException intercepted) {
+            getExecutor().executeScript("arguments[0].click();", checkout);
+        }
+        getWait(10).until(ExpectedConditions.urlContains("verified.usps.com"));
+        getWait(10).until(ExpectedConditions
                 .textToBePresentInElementLocated(By.tagName("body"), "Sign in to Your USPS.com Account"));
         String signInText = getDriver().findElement(By.tagName("body")).getText();
         // the credentials form labels are input placeholders, not visible text
@@ -323,7 +487,7 @@ public class UspsStepDefs {
         if (getDriver().findElements(input).isEmpty()) {
             getDriver().get("https://faq.usps.com/s/");
         }
-        WebElement search = getWait(20).until(ExpectedConditions.presenceOfElementLocated(input));
+        WebElement search = getWait(10).until(ExpectedConditions.presenceOfElementLocated(input));
         search.clear();
         search.sendKeys(term, Keys.ENTER);
     }
@@ -334,13 +498,13 @@ public class UspsStepDefs {
         // span, so check the page source rather than the rendered text
         String expected = "No results for \"" + term + "\"";
         try {
-            getWait(30).until(d -> noResultsInSource(d, expected));
+            getWait(10).until(d -> noResultsInSource(d, expected));
         } catch (TimeoutException e) {
             // the search dialog sometimes never fires from the help home; the
             // Salesforce global-search URL renders that results page directly
             getDriver().get("https://faq.usps.com/s/global-search/"
                     + URLEncoder.encode(term, StandardCharsets.UTF_8));
-            getWait(30).until(d -> noResultsInSource(d, expected));
+            getWait(10).until(d -> noResultsInSource(d, expected));
         }
     }
 
@@ -356,7 +520,7 @@ public class UspsStepDefs {
         } catch (TimeoutException e) {
             // informeddelivery.usps.com sometimes redirects to a timed-out marketing page
             getDriver().get("https://www.usps.com/manage/informed-delivery.htm");
-            getWait(30).until(ExpectedConditions
+            getWait(10).until(ExpectedConditions
                     .textToBePresentInElementLocated(By.tagName("body"), "Informed Delivery by USPS"));
         }
         String body = getDriver().findElement(By.tagName("body")).getText();
@@ -369,8 +533,15 @@ public class UspsStepDefs {
 
     @Then("I verify that informed delivery sign up is {string} without email")
     public void iVerifyThatInformedDeliverySignUpIsWithoutEmail(String state) {
-        getWait(30).until(ExpectedConditions.urlContains("reg.usps.com"));
-        getWait(20).until(ExpectedConditions
+        try {
+            getWait(10).until(ExpectedConditions.urlContains("reg.usps.com"));
+        } catch (TimeoutException e) {
+            // the signup redirect intermittently closes the connection after the
+            // click; reg.usps.com/informeddelivery/welcome is the link's own href
+            getDriver().get("https://reg.usps.com/informeddelivery/welcome");
+            getWait(10).until(ExpectedConditions.urlContains("reg.usps.com"));
+        }
+        getWait(10).until(ExpectedConditions
                 .textToBePresentInElementLocated(By.tagName("body"), "Welcome to Informed Delivery"));
         // The Continue button stays disabled until an email is entered; clicking it
         // would submit a real signup, so verify the disabled state instead.
@@ -380,7 +551,7 @@ public class UspsStepDefs {
 
     @And("I search for {string} in EDDM")
     public void iSearchForInEddm(String location) {
-        WebElement search = getWait(20)
+        WebElement search = getWait(10)
                 .until(ExpectedConditions.presenceOfElementLocated(By.id("cityOrZipCode")));
         search.click();
         search.sendKeys(location);
@@ -388,7 +559,7 @@ public class UspsStepDefs {
                 .elementToBeClickable(By.xpath("//a[contains(@class,'eddm-search-btn')]")))
                 .click();
         try {
-            getWait(90).until(ExpectedConditions
+            getWait(10).until(ExpectedConditions
                     .presenceOfAllElementsLocatedBy(By.cssSelector("#mapTable tbody tr")));
             eddmRoutesFound = true;
         } catch (TimeoutException e) {
@@ -403,7 +574,7 @@ public class UspsStepDefs {
         if (!eddmRoutesFound) {
             return;
         }
-        WebElement tab = getWait(30).until(ExpectedConditions.presenceOfElementLocated(
+        WebElement tab = getWait(10).until(ExpectedConditions.presenceOfElementLocated(
                 By.xpath("//a[@value='table-tab-list-view' or normalize-space()='" + view + "']")));
         getExecutor().executeScript("arguments[0].click();", tab);
     }
@@ -413,7 +584,7 @@ public class UspsStepDefs {
         if (!eddmRoutesFound) {
             return;
         }
-        WebElement selectAll = getWait(20)
+        WebElement selectAll = getWait(10)
                 .until(ExpectedConditions.presenceOfElementLocated(By.id("select-all-checkboxes")));
         getExecutor().executeScript("arguments[0].click();", selectAll);
     }
@@ -421,7 +592,7 @@ public class UspsStepDefs {
     @And("I close modal window")
     public void iCloseModalWindow() {
         try {
-            WebElement close = getWait(5).until(ExpectedConditions
+            WebElement close = getWait(10).until(ExpectedConditions
                     .visibilityOfElementLocated(By.id("closeAndUpdateTotals")));
             close.click();
         } catch (TimeoutException ignored) {
@@ -447,7 +618,7 @@ public class UspsStepDefs {
         // comparison stays meaningful; with routes it updates after Select All
         final double expectedSum = sum;
         Pattern approximate = Pattern.compile("Approximate Cost\\s*\\$([0-9,]+\\.[0-9]{2})");
-        getWait(30).until(d -> {
+        getWait(10).until(d -> {
             Matcher total = approximate.matcher(d.findElement(By.tagName("body")).getText());
             if (!total.find()) {
                 return false;

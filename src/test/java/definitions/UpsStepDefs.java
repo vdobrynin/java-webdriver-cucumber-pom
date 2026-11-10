@@ -23,7 +23,7 @@ public class UpsStepDefs {
 
     @And("I open Shipping menu")
     public void iOpenShippingMenu() {
-        getWait(20).until(driver -> {
+        getWait(10).until(driver -> {
             for (WebElement menu : driver.findElements(
                     By.xpath("//button[@aria-controls='subsection-shipping']"))) {
                 if (menu.isDisplayed()) {
@@ -97,7 +97,7 @@ public class UpsStepDefs {
         // Use the guided workflow; the default single-page workflow does not expose
         // the same navigation buttons used by these scenarios.
         getDriver().get(GUIDED_ORIGIN_URL);
-        getWait(30).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("origin-cac_companyOrName")));
     }
 
@@ -121,29 +121,29 @@ public class UpsStepDefs {
 
         if (url.contains("/guided/origin")) {
             clickById("nbsBackForwardNavigationContinueButton");
-            getWait(20).until(ExpectedConditions
+            getWait(10).until(ExpectedConditions
                     .visibilityOfElementLocated(By.id("origin-cac_postalCode")));
             fillDetailedAddress("origin", getData("sender"));
             clickById("nbsBackForwardNavigationContinueButton");
             handleAddressClassification("/guided/destination");
         } else if (url.contains("/guided/destination")) {
             clickById("nbsBackForwardNavigationContinueButton");
-            getWait(20).until(ExpectedConditions
+            getWait(10).until(ExpectedConditions
                     .visibilityOfElementLocated(By.id("destination-cac_postalCode")));
             fillDetailedAddress("destination", getData("receiver"));
             clickById("nbsBackForwardNavigationContinueButton");
             handleAddressClassification("/guided/package");
         } else if (url.contains("/guided/package")) {
             clickById("nbsBackForwardNavigationContinueButton");
-            getWait(25).until(ExpectedConditions.urlContains("/guided/pickup-service"));
+            getWait(10).until(ExpectedConditions.urlContains("/guided/pickup-service"));
         } else if (url.contains("/guided/pickup-service")) {
             clickById("nbsBackForwardNavigationContinueButton");
-            getWait(25).until(ExpectedConditions.urlContains("/guided/options"));
+            getWait(10).until(ExpectedConditions.urlContains("/guided/options"));
         } else if (url.contains("/guided/options")) {
             submitDetailsAndWaitForPayment();
         } else if (url.contains("/guided/payment")) {
             clickById("nbsBackForwardNavigationReviewPrimaryButton");
-            getWait(30).until(ExpectedConditions.urlContains("/ship/single-page"));
+            getWait(10).until(ExpectedConditions.urlContains("/ship/single-page"));
         } else {
             clickById("nbsBackForwardNavigationContinueButton");
         }
@@ -167,7 +167,7 @@ public class UpsStepDefs {
             waitFor(1000);
             clickById("nbsBackForwardNavigationContinueButton");
             try {
-                getWait(12).until(ExpectedConditions.urlContains("/guided/payment"));
+                getWait(10).until(ExpectedConditions.urlContains("/guided/payment"));
                 return;
             } catch (TimeoutException e) {
                 System.out.println("Details page did not advance to payment (attempt "
@@ -194,7 +194,7 @@ public class UpsStepDefs {
     @Then("I verify origin shipment fields submitted")
     public void iVerifyOriginShipmentFieldsSubmitted() {
         Map<String, String> sender = getData("sender");
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("destination-cac_companyOrName")));
 
         String pageText = getDriver().findElement(By.tagName("body")).getText();
@@ -213,12 +213,12 @@ public class UpsStepDefs {
         getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("nbsCancelShipmentWarningYes")));
         jsClick(getDriver().findElement(By.id("nbsCancelShipmentWarningYes")));
-        getWait(30).until(ExpectedConditions.urlContains("/guided/origin"));
+        getWait(10).until(ExpectedConditions.urlContains("/guided/origin"));
     }
 
     @Then("I verify shipment form is reset")
     public void iVerifyShipmentFormIsReset() {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("origin-cac_companyOrName")));
         String nameValue = getDriver()
                 .findElement(By.id("origin-cac_companyOrName"))
@@ -237,7 +237,7 @@ public class UpsStepDefs {
 
     @And("I set packaging type")
     public void iSetPackagingType() throws InterruptedException {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("nbsPackagePackagingTypeDropdown0")));
         Thread.sleep(2000);
 
@@ -260,7 +260,7 @@ public class UpsStepDefs {
 
     @Then("I verify total charges changed")
     public void iVerifyTotalChargesChanged() {
-        getWait(25).until(driver -> getTotalChargesText().contains("$"));
+        getWait(10).until(driver -> getTotalChargesText().contains("$"));
 
         String currentTotal = getTotalChargesText().trim();
         assertThat(currentTotal)
@@ -309,7 +309,7 @@ public class UpsStepDefs {
             dateField.sendKeys(Keys.ESCAPE);
         }
 
-        getWait(20).until(driver -> date.equals(
+        getWait(10).until(driver -> date.equals(
                 driver.findElement(By.id("nbsDropOffDatePicker")).getAttribute("value")));
         // Give UPS a moment to re-rate the shipment for the new ship date.
         waitFor(4000);
@@ -318,7 +318,7 @@ public class UpsStepDefs {
     private void selectService(String serviceName) {
         By serviceLabel = By.xpath("//label[.//p[contains(@id,'nbsServiceTileServiceDescription')"
                 + " and normalize-space()='" + serviceName + "']]");
-        getWait(25).until(ExpectedConditions.presenceOfElementLocated(serviceLabel));
+        getWait(10).until(ExpectedConditions.presenceOfElementLocated(serviceLabel));
         waitFor(3000);
 
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -348,11 +348,11 @@ public class UpsStepDefs {
 
     @And("I set Saturday Delivery type")
     public void iSetSaturdayDeliveryType() {
-        getWait(20).until(ExpectedConditions
+        getWait(10).until(ExpectedConditions
                 .visibilityOfElementLocated(By.id("nbsShipmentDescription")));
         typeById("nbsShipmentDescription", "Test");
 
-        WebElement saturdayDelivery = getWait(20)
+        WebElement saturdayDelivery = getWait(10)
                 .until(ExpectedConditions.presenceOfElementLocated(
                         By.id("nbsSaturdayDeliveryOptionBaseOptionSwitch")));
         if (!saturdayDelivery.isSelected()) {
@@ -363,7 +363,7 @@ public class UpsStepDefs {
     @And("I select Paypal payment type")
     public void iSelectPaypalPaymentType() throws InterruptedException {
         By paypalLabel = By.xpath("//label[@for='other-ways-to-pay-tile']");
-        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(paypalLabel));
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(paypalLabel));
         jsClick(getDriver().findElement(paypalLabel));
         Thread.sleep(1000);
     }
@@ -373,7 +373,7 @@ public class UpsStepDefs {
         Map<String, String> sender = getData("sender");
         Map<String, String> receiver = getData("receiver");
 
-        getWait(30).until(ExpectedConditions.visibilityOfElementLocated(
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(
                 By.id("nbsBackForwardNavigationPayAndGetLabelsButton")));
 
         String pageText = getDriver().findElement(By.tagName("body")).getText();
@@ -401,7 +401,7 @@ public class UpsStepDefs {
     }
 
     private void handleAddressClassification(String expectedUrlPart) {
-        getWait(20).until(driver -> {
+        getWait(10).until(driver -> {
             List<WebElement> modal = driver.findElements(By.id("nbsAddressClassificationContinue"));
             return (modal.size() > 0 && modal.get(0).isDisplayed())
                     || driver.getCurrentUrl().contains(expectedUrlPart);
@@ -412,7 +412,7 @@ public class UpsStepDefs {
             jsClick(modal.get(0));
         }
 
-        getWait(30).until(ExpectedConditions.urlContains(expectedUrlPart));
+        getWait(10).until(ExpectedConditions.urlContains(expectedUrlPart));
     }
 
     private void dismissCookieBanner() {
@@ -427,7 +427,7 @@ public class UpsStepDefs {
     }
 
     private void typeById(String id, String value) {
-        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
         WebElement element = getDriver().findElement(By.id(id));
         try {
             element.click();
@@ -448,7 +448,7 @@ public class UpsStepDefs {
     }
 
     private void clickById(String id) {
-        getWait(20).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
+        getWait(10).until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
         jsClick(getDriver().findElement(By.id(id)));
     }
 

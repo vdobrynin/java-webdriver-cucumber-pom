@@ -54,7 +54,7 @@ public class TestContext {
     }
 
     public static WebDriverWait getWait() {
-        return getWait(5);
+        return getWait(10);
     }
 
     public static WebDriverWait getWait(int timeout) {

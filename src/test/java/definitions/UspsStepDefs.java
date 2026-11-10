@@ -73,7 +73,7 @@ public class UspsStepDefs {
         // not clear, so re-enter the fields and resubmit before retrying
         for (int attempt = 1; attempt <= 7; attempt++) {
             try {
-                getWait(20).until(driver ->
+                getWait(10).until(driver ->
                         zipResultsVisible() || zipAddressRejectedByServer());
             } catch (TimeoutException ignored) {
                 // neither results nor the inline error rendered yet
